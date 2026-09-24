@@ -1,0 +1,24 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class FloorPlan extends Model
+{
+    use HasFactory;
+
+    protected $table = "floor_plan";
+    protected $guarded = [];
+
+    // public function division()
+    // {
+    //     return $this->belongsTo(Division::class,'divisions_id');
+    // }
+
+    // public function floor()
+    // {
+    //     return $this->hasOne(Floor::class,'id','location_id');
+    // }
+}

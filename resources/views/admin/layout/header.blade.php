@@ -1,0 +1,1066 @@
+<!-- Navbar -->
+{{-- --}}
+
+
+<nav class="main-header navbar navbar-expand top-nav">
+    <!-- Left navbar links -->
+    <ul class="navbar-nav">
+        <li class="nav-item">
+            <a href="/admin/dashboard" class="nav-link @if (Session::get('active') == 'dashboard') active @endif"><span
+                    class="nav-link header-heading"> <img src="{{ asset('theme/dist/img/logo.png') }}" alt="BSES"
+                        class="brand-image img-circle2" style="opacity: .8">
+                    &nbsp;&nbsp; </span></a>
+
+        </li>
+
+    </ul>
+
+    <ul class="navbar-nav ml-auto ">
+        <li class="nav-item mt-2 nav-heading">
+            <span>
+                <h4 style="color: rgb(3, 142, 220) ; font-weight:bold;">REDIAN SOFTWARE Need Validation Management System</h4>
+            </span>
+        </li>
+    </ul>
+    <!-- Right navbar links -->
+    <ul class="navbar-nav ml-auto">
+
+
+        @php
+        if (Auth::user()->role_id == 9) {
+        $Notification = App\Models\Notification::query();
+        $notifications = $Notification
+        ->where('initiated_by', Auth::user()->id)
+        ->orderBy('created_at', 'desc')
+        ->get();
+        $notifications1 = $Notification
+        ->where('initiated_by', Auth::user()->id)
+        ->orderBy('created_at', 'desc')
+        ->take(5)
+        ->get();
+        } else {
+        $Notification = App\Models\Notification::query();
+        $notifications = $Notification->orderBy('created_at', 'desc')->get();
+        $notifications1 = $Notification
+        ->orderBy('created_at', 'desc')
+        ->take(5)
+        ->get();
+        }
+
+        @endphp
+        <li class="nav-item dropdown top-nav-item mt-3">
+            <!-- <a class="nav-link" data-toggle="dropdown" href="#">
+                <i class="far fa-bell"></i>
+                <span class="badge badge-warning navbar-badge fcount"></span>
+            </a> -->
+            <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">
+                <span class="dropdown-item dropdown-header"><i class='fas fa-envelope mr-2'
+                        style='font-size:16px; color: rgb(3, 142, 220);'></i><span class="fcount"></span>
+                    Notifications</span>
+                <div class="dropdown-divider"></div>
+
+
+                <!-- @foreach ($notifications1 as $notification)
+<a href="{{ route('admin.notification') }}" class="dropdown-item">
+        <i class="fas fa-envelope mr-2"></i> {{ $notification->serial_number }}
+        <span
+        class="float-right text-muted text-sm">{{ $notification->created_at->diffForHumans() }}</span>
+        </a>
+        <div class="dropdown-divider"></div>
+@endforeach -->
+                <div class="drop"></div>
+                <!-- <a href="{{ route('admin.notification') }}" class="dropdown-item dropdown-footer">See All
+        Notifications</a> -->
+            </div>
+
+        </li>
+        <!-- <li class="nav-item dropdown mt-2" >
+            <a class="nav-link" data-toggle="dropdown" href="#">
+                <i class="far fa-bell" style="font-size:25px;"></i>
+                <span class="badge badge-warning navbar-badge" style="font-size:10px;">{{ $notifications->count() }}</span>
+            </a>
+            <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">
+                <span class="dropdown-item dropdown-header">{{ $notifications->count() }} Notifications</span>
+                <div class="dropdown-divider"></div>
+                @foreach ($notifications1 as $notification)
+<a href="{{ route('admin.notification') }}" class="dropdown-item">
+                    <i class="fas fa-envelope mr-2"></i> {{ $notification->serial_number }}
+                    <span class="float-right text-muted text-sm">{{ $notification->created_at->diffForHumans() }}</span>
+                </a>
+                <div class="dropdown-divider"></div>
+@endforeach
+                <a href="{{ route('admin.notification') }}" class="dropdown-item dropdown-footer">See All
+                    Notifications</a>
+            </div>
+        </li> -->
+
+        <li class="nav-item dropdown top-nav-item " style="margin-right: -30px; margin-top:5px; cursor:pointer;">
+            <a class="nav-link welcomeText" data-toggle="dropdown" style="margin-top:-4px;">
+                @if (!empty(\Auth::user()->profile_img))
+                <img id="Profile_Image" src="{{ asset(\Auth::user()->profile_img) }}" style="width:35px; height:35px; border-radius:50%; display:block; margin:auto;">
+                @else
+                <img id="Profile_Image" src="{{ asset('images/notFound.jpg') }}" style="width:35px; height:35px; border-radius:50%; display:block; margin:auto;">
+                @endif
+
+                <figcaption style="color: rgb(3, 142, 220); font-size:12px; font-weight:bold; text-decoration:underline;">Profile</figcaption>
+            </a>
+
+        </li>
+
+        <li class="nav-item dropdown  top-nav-item">
+
+            <a class="nav-link" data-toggle="dropdown" style="margin-top:-4px;">
+
+
+                <b style="color: #7b8190;font-size:18px; font-weight:700;
+                      white-space: nowrap;"
+                    class="btn welcomeText" data-toggle="modal" data-target="#myModal">
+
+                    &nbsp; Welcome, {{ \Auth::user()->name ?? Admin }}
+                </b>
+
+            </a>
+            @if (session()->has('notifications'))
+            <span class="last-login"
+                style="color: rgb(3, 142, 220); font-size:12px; font-weight:bold; margin-left:40px;"> Last Login:
+                {!! session('notifications') !!}</span>
+            @endif
+        </li>
+
+        <li class="nav-item dropdown logout-btn top-nav-item">
+            <a href="/admin/logout" class="dropdown-item">
+                <i class="fas fa-power-off login-icon profile-btn"></i>
+            </a>
+            <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">
+
+                <div class="dropdown-divider"></div>
+                <a href="/admin/logout" class="dropdown-item">
+                    <i class="fa fa-power-off mr-2"></i> Logout
+                </a>
+            </div>
+        </li>
+
+    </ul>
+</nav>
+
+
+<!-- Second nav -->
+<nav class="navbar navbar-expand-lg navbar-light bg-light">
+
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+        aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <ul class="navbar-nav mr-auto">
+            <li class="nav-item">
+
+            
+                <a href="/admin/dashboard" class="nav-link forBorder">
+                    <i class="nav-icon fas fa-tachometer-alt"></i> &nbsp;Dashboard </a>
+          
+
+            </li>
+            @can('create_division')
+            <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle master" href="#" role="button" data-toggle="dropdown"
+                    aria-expanded="false">
+                    <i class="nav-icon fas fa-list"></i> &nbsp;Master
+                </a>
+                <div class="dropdown-menu">
+                    @can('create_division')
+                    <a href="/admin/company" class="nav-link forBorderDropdown">
+                        Company</a>
+                    @endcan
+
+                    <!-- @can('create_location')
+        <a href="/admin/locations"
+                                class="nav-link forBorderDropdown">
+                                Location
+                            </a>
+    @endcan -->
+
+                    @can('create_department')
+                    <a href="/admin/listservice" class="nav-link forBorderDropdown">
+                        Services
+                    </a>
+                    @endcan
+
+
+
+
+                    @can('supdepartment_list')
+                    <a href="/admin/supdepartment" class="nav-link forBorderDropdown">
+                        Department
+                    </a>
+                    @endcan
+
+                    @can('create_nv_department')
+                    <a href="/admin/department" class="nav-link forBorderDropdown">
+                        Sub-Department
+                    </a>
+                    @endcan
+
+                    @can('create_nv_department')
+                    <a href="/admin/list-dummy-department" class="nav-link forBorderDropdown">
+                        Dummy Department
+                    </a>
+                    @endcan
+
+
+
+                    @can('create_capex_master')
+                    <a href="/admin/capexmaster" class="nav-link forBorderDropdown">
+                        CAPEX
+                    </a>
+                    @endcan
+
+                    @can('create_capex_master')
+                    <a href="/admin/opex" class="nav-link forBorderDropdown">
+                        OPEX
+                    </a>
+                    @endcan
+
+                    @can('create_nv_department')
+                    <a href="/admin/list-provisional" class="nav-link forBorderDropdown">
+                        Provisional
+                    </a>
+                    @endcan
+
+                    @can('create_capex_master')
+                    <a href="/admin/tax" class="nav-link forBorderDropdown">
+                        Tax
+                    </a>
+                    @endcan
+
+                    @can('create_serviceboq')
+                    <a href="/admin/serviceboq" class="nav-link forBorderDropdown">
+                        Service BOQ
+                    </a>
+                    @endcan
+
+                    @can('create_materialboq')
+                    <a href="/admin/materialboq" class="nav-link forBorderDropdown">
+                        Material BOQ
+                    </a>
+                    @endcan
+
+
+                    <!-- @can('create_role')
+        <a href="/admin/roles" class="nav-link forBorderDropdown">
+                                Roles
+                            </a>
+    @endcan -->
+
+                    @can('workFlow')
+                    <a href="/admin/Workflow" class="nav-link forBorderDropdown">
+                        CAPEX Workflow
+                    </a>
+                    <a href="/admin/opex_Workflow" class="nav-link forBorderDropdown">
+                        OPEX Workflow
+                    </a>
+                    @endcan
+
+                    <!-- @can('create_notesworkflows')
+        <a href="/admin/notesworkflows" class="nav-link forBorderDropdown">
+                                Notes Workflow
+                            </a>
+    @endcan -->
+
+
+
+                </div>
+            </li>
+            @endcan
+            <li class="nav-item">
+                @can('create_employee')
+                <a href="/admin/employees" class="nav-link forBorder">
+                    <i class="nav-icon fas fa-users"></i> &nbsp;Manage Employee
+                </a>
+                @endcan
+            </li>
+            <li class="nav-item">
+                @can('create_employee')
+                <a href="/admin/user_otp" class="nav-link forBorder">
+                    <i class="nav-icon fas fa-user-lock"></i> &nbsp;User OTP
+                </a>
+                @endcan
+            </li>
+            <li class="nav-item">
+                <a href="/admin/needvalidation/list" class="nav-link forBorder">
+
+                    @php
+                    $user = \Auth::user();
+                    $role_id = $user->role_id;
+                    @endphp
+
+                    @if ($role_id == '1' || $role_id == '12' )
+                    <i class="nav-icon fas fa-folder"></i>
+                    Need Validation List
+                    @elseif($role_id == '11')
+                    <i class="nav-icon fas fa-folder"></i>
+                    Need Validation List
+                    @elseif($role_id == '9')
+                    <i class="nav-icon fas fa-folder"></i>
+                    Create Need Validation
+                    @endif
+                </a>
+
+            </li>
+            @can('create_division')
+            <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle logs" href="#" role="button" data-toggle="dropdown"
+                    aria-expanded="false">
+                    <i class="nav-icon fas fa-server"></i> &nbsp;Logs
+                </a>
+                <div class="dropdown-menu">
+
+                    @can('create_division')
+                    <a href="/admin/clog-company" class="nav-link individual_logs">
+                        Company</a>
+                    @endcan
+
+                    @can('create_department')
+                    <a href="/admin/shlog-service" class="nav-link individual_logs">
+                        Service
+                    </a>
+                    @endcan
+
+                    @can('supdepartment_list')
+                    <a href="/admin/log-supdepartment" class="nav-link individual_logs">
+                        Department
+                    </a>
+                    @endcan
+
+                    @can('create_nv_department')
+                    <a href="/admin/dlog-department" class="nav-link individual_logs">
+                        Sub-Department
+                    </a>
+                    @endcan
+
+                    @can('create_capex_master')
+                    <a href="/admin/blog" class="nav-link individual_logs">
+                        CAPEX
+                    </a>
+                    @endcan
+
+                    @can('create_capex_master')
+                    <a href="/admin/ologs" class="nav-link individual_logs">
+                        OPEX
+                    </a>
+                    @endcan
+                    @can('create_employee')
+                    <a href="/admin/tlogs" class="nav-link individual_logs">Tax
+                    </a>
+                    @endcan
+
+                    @can('create_serviceboq')
+                    <a href="/admin/slog" class="nav-link individual_logs">
+                        Service BOQ
+                    </a>
+                    @endcan
+
+                    @can('create_materialboq')
+                    <a href="/admin/mlog" class="nav-link individual_logs">
+                        Material BOQ
+                    </a>
+                    @endcan
+
+                    <!-- @can('create_role')
+        <a href="/admin/rlog" class="nav-link individual_logs">
+                                Roles
+                            </a>
+    @endcan -->
+
+                    @can('workFlow')
+                    <a href="/admin/nvlog" class="nav-link individual_logs">
+                        CAPEX Workflow
+                    </a>
+                    <a href="/admin/opex_nvlog" class="nav-link individual_logs">
+                        OPEX Workflow
+                    </a>
+                    @endcan
+
+                    <!-- @can('create_notesworkflows')
+        <a href="/admin/noteslog" class="nav-link individual_logs">
+                                Notes Workflow
+                            </a>
+    @endcan -->
+
+
+                    @can('create_employee')
+                    <a href="/admin/elog" class="nav-link individual_logs"> Employee
+                    </a>
+                    @endcan
+                    @can('create_employee')
+                    <a href="/admin/ulog" class="nav-link individual_logs">OTP
+                    </a>
+                    @endcan
+                </div>
+            </li>
+            @endcan
+            <li class="nav-item dropdown">
+                @can('create_employee')
+                <a class="nav-link dropdown-toggle report" href="#" role="button" data-toggle="dropdown"
+                    aria-expanded="false">
+                    <i class="nav-icon fas fa-file-alt"></i> &nbsp;Report
+                </a>
+                <div class="dropdown-menu">
+                    <a href="/admin/reports" class="nav-link report_dropdown">Consolidated Requirement of FY 24-25</a>
+                    <a href="/admin/nv_tracker_list" class="nav-link report_dropdown">NV Tracker</a>
+                    <!-- <a href="#" class="nav-link forBorderDropdown">Budget Utilization</a> -->
+                </div>
+                @endcan
+            </li>
+            <li class="nav-item dropdown">
+                @can('reports_view')
+                <a class="nav-link dropdown-toggle report" href="#" role="button" data-toggle="dropdown"
+                    aria-expanded="false">
+                    <i class="nav-icon fas fa-file-alt"></i> &nbsp;Report
+                </a>
+                <div class="dropdown-menu">
+                    <a href="/admin/reports" class="nav-link report_dropdown">Consolidated Requirement of FY 24-25</a>
+                    <a href="/admin/nv_tracker_list" class="nav-link report_dropdown">NV Tracker</a>
+                    <!-- <a href="#" class="nav-link forBorderDropdown">Budget Utilization</a> -->
+                </div>
+                @endcan
+            </li>
+            <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle user_manual" href="#" role="button" data-toggle="dropdown"
+                    aria-expanded="false">
+                    <i class="nav-icon fas fa-file-alt"></i> &nbsp;User Manual
+                </a>
+                <div class="dropdown-menu">
+                    <a href="{{ route('user.manual', 1) }}" class="nav-link user_manual_list" target="_blank">Login & Signature Process</a>
+                    <a href="{{ route('user.manual', 2) }}" class="nav-link user_manual_list" target="_blank">Material Entry Form</a>
+                    <a href="{{ route('user.manual', 3) }}" class="nav-link user_manual_list" target="_blank">Service Entry Form</a>
+                </div>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link user_manual" href="#" id="passwordChangeBtn">
+                    <i class="nav-icon fas fa-file-alt"></i> &nbsp;Password Change
+                </a>
+            </li>
+        </ul>
+
+
+        <form class="form-inline my-4 my-lg-0">
+            <ul class="navbar-nav mr-auto">
+                <li class="nav-item dropdown top-nav-second-item" style="margin-top: -10px;">
+                    <a class="nav-link" data-toggle="dropdown" href="#">
+                        <i class="far fa-bell"></i>
+                        <span class="badge badge-warning navbar-badge fcount"></span>
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">
+                        <span class="dropdown-item dropdown-header"><i class='fas fa-envelope mr-2'
+                                style='font-size:16px; color: rgb(3, 142, 220);'></i><span class="fcount"></span>
+                            Notifications</span>
+                        <div class="dropdown-divider"></div>
+
+
+                        <!-- @foreach ($notifications1 as $notification)
+<a href="{{ route('admin.notification') }}" class="dropdown-item">
+        <i class="fas fa-envelope mr-2"></i> {{ $notification->serial_number }}
+        <span
+        class="float-right text-muted text-sm">{{ $notification->created_at->diffForHumans() }}</span>
+        </a>
+        <div class="dropdown-divider"></div>
+@endforeach -->
+                        <div class="drop"></div>
+                        <!-- <a href="{{ route('admin.notification') }}" class="dropdown-item dropdown-footer">See All
+        Notifications</a> -->
+                    </div>
+
+                </li>
+
+                <li class="nav-item dropdown top-nav-second-item">
+                    <a class="nav-link" data-toggle="dropdown" style="margin-top:-15px;">
+
+                        <b style="color: #7b8190;font-size:18px; font-weight:700;
+                              white-space: nowrap;"
+                            class="btn" data-toggle="modal" data-target="#myModal">
+                            &nbsp; Welcome, {{ \Auth::user()->name ?? Admin }}</b>
+
+                    </a>
+
+                    @if (session()->has('notifications'))
+                    <span class="last-login" style="color: rgb(3, 142, 220); font-size:12px; font-weight:bold;">
+                        Last Login: {!! session('notifications') !!}</span>
+                    @endif
+                </li>
+
+                <li class="nav-item dropdown logout-btn top-nav-second-item">
+                    <a href="/admin/logout" class="dropdown-item">
+                        <i class="fas fa-power-off login-icon profile-btn"></i>
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">
+
+                        <div class="dropdown-divider"></div>
+                        <a href="/admin/logout" class="dropdown-item">
+                            <i class="fa fa-power-off mr-2"></i> Logout
+                        </a>
+                    </div>
+                </li>
+            </ul>
+
+        </form>
+
+    </div>
+</nav>
+<!-- /.navbar -->
+
+<div class="modal fade modal2" id="myModal" role="dialog">
+    <div class="modal-dialog modal-lg">
+
+        <div class="modal-content">
+            <div class="modal-header justify-content-center">
+                <h6 class="text-white">
+                    <b>User Profile</b>
+                </h6>
+                @if (\Auth::user()->signature_status == 0)
+                <button type="button" id="show_alert" class="close close-btn-modal" data-toggle="modal"
+                    data-target="#myModal22">X</button>
+                @else
+                <button type="button" id="show_alert" class="close btn_dis close-btn-modal" data-dismiss="modal">X</button>
+                @endif
+            </div>
+
+            <div class="row" style="margin-bottom:0px;padding-bottom:0px;">
+                <div class="col-6 p-3 first-card-signature" style="margin-bottom:0px;padding-bottom:0px;">
+                    <div class="card">
+                        <form action="{{ url('admin/store-signature') }}" method="post" id="formSubmits"
+                            enctype="multipart/form-data">
+                            @csrf
+                            <input type="hidden" name="user_id" value="{{ \Auth::user()->id ?? '' }}">
+                            <div class="modal-body ">
+                                <div class="container text-center signature">
+
+                                    <div class="row mt-1">
+                                        <div class="col-12">
+                                            <h6 class="select-signature">Please Select Your Signature</h6>
+                                        </div>
+                                        <div class="col-6 first">
+                                            <div class="card" style="padding:10px 0px 0px 0px; height:75px;">
+
+                                                <h6 id="signature">{{ \Auth::user()->name ?? Admin }}</h6>
+                                                <input type="radio" name="signature"
+                                                    {{ \Auth::user()->signature_id == '1' ? 'checked' : '' }}
+                                                    value="1">
+                                            </div>
+                                        </div>
+
+                                        <div class="col-6 second">
+                                            <div class="card" style="padding:10px 0px 0px 0px; height:75px;">
+
+                                                <h6 id="signature1">{{ \Auth::user()->name ?? Admin }}</h6>
+                                                <input type="radio" name="signature"
+                                                    {{ \Auth::user()->signature_id == '2' ? 'checked' : '' }}
+                                                    value="2">
+                                            </div>
+                                        </div>
+
+                                        <div class="col-6 third">
+                                            <div class="card" style="padding:10px 0px 0px 0px; height:75px;">
+
+                                                <h6 id="signature1">{{ \Auth::user()->name ?? Admin }}</h6>
+                                                <input type="radio" name="signature"
+                                                    {{ \Auth::user()->signature_id == '3' ? 'checked' : '' }}
+                                                    value="3">
+                                            </div>
+                                        </div>
+
+                                        <div class="col-6 fourth">
+                                            <div class="card" style="padding:10px 0px 0px 0px; height:75px;">
+
+                                                <h6 id="signature1">{{ \Auth::user()->name ?? Admin }}</h6>
+                                                <input type="radio" name="signature"
+                                                    {{ \Auth::user()->signature_id == '4' ? 'checked' : '' }}
+                                                    value="4">
+                                            </div>
+                                        </div>
+
+
+                                        <div class="col-3"></div>
+
+                                        <!-- <div class="col-6">
+                                        <div class="card" style="padding:0px 0px 0px 0px; height:75px;">
+                                            @if(!empty(\Auth::user()->image))
+                                            <img src="{{ asset('/images/' . \Auth::user()->image) }}" id="output" style="padding:0px 0px 0px 0px; height:75px;"/>
+                                            @else
+                                            <span id="imagePlaceholder" style="font-size:13px;margin-top:7px;">Signature Image</span>
+                                            <img src="" id="output" style="padding:0px 0px 0px 0px; height:75px;"/>
+                                            @endif
+                                            <input type="radio" name="signature" style="margin-top: 10px;"
+                                                {{ \Auth::user()->signature_id == '5' ? 'checked' : '' }}
+                                                value="5" >
+                                        </div>
+                                    </div> -->
+
+                                        <div class="col-3"></div>
+
+                                    </div>
+
+                                </div>
+                            </div>
+                            <div class="row mt-2 mb-4">
+                                <div class="col-12 text-center">
+                                    <div class="m-auto ">
+                                        <!-- <span id="upload" class="btn btn-primary btn-file" style="font-size:14px; padding:2px 4px 2px 4px;font-weight:bold;">
+                                        Upload Image<input type="file" name="image" onchange="previewFile()" />
+                                    </span> -->
+                                        <button type="submit" id="btn_submit" class="btn btn-primary" style="font-size:14px; padding:2px 4px 2px 4px;font-weight:bold;">Submit</button>
+                                    </div>
+
+
+                                </div>
+                            </div>
+                        </form>
+
+                        <form action="{{ url('admin/log-signature') }}" method="post" id="logSubmits">
+                            @csrf
+
+                            <div class="text-center">
+                                <a href="javascript:void" id="btn_log"><button type="submit"
+                                        class="btn btn-primary" style="font-size:14px; padding:2px 4px 2px 4px;font-weight:bold; margin-top:-30px;">View
+                                        Log</button></a>
+                            </div>
+                        </form>
+
+
+                    </div>
+
+                </div>
+
+                <div class="col-6 p-3 signature-line" style="margin-bottom:0px;padding-bottom:0px;">
+                    <div class="card user-profile shadow-lg p-3">
+                        @if (!empty(\Auth::user()->profile_img))
+                        <img id="profileImage" src="{{ asset(\Auth::user()->profile_img) }}">
+                        @else
+                        <img id="profileImage" src="{{ asset('images/notFound.jpg') }}">
+                        @endif
+                        {{-- <img id="profileImage" src="{{ asset(\Auth::user()->profile_img) }}" alt="No Profile Picture Available"> --}}
+                        <form action="" method="POST">
+                            @csrf
+                            <input type="file" id="photoInput" placeholder="Choose Photo" class="form-control mb-2">
+                        </form>
+
+                        <div class="row text-left">
+                            <div class="col-4">
+                                <p class="user-details">User Name:-</p>
+                            </div>
+
+                            <div class="col-8">
+                                <p class="p"> {{ \Auth::user()->name}}</p>
+                            </div>
+
+                            <div class="col-4">
+                                <p class="user-details">Employee ID:-</p>
+                            </div>
+
+                            <div class="col-8">
+                                <p class="p">{{ \Auth::user()->username}}</p>
+                            </div>
+
+                            <div class="col-4">
+                                <p class="user-details">Designation:-</p>
+                            </div>
+
+                            <div class="col-8">
+                                @php
+                                $userDesignation = \App\Models\Designation::find(\Auth::user()->designation);
+                                @endphp
+                                <p class="p">{{ $userDesignation ? $userDesignation->name : 'No Designation' }}</p>
+                            </div>
+
+
+                            <div class="user-details col-4">
+                                <p class="user-details">Phone No.:-</p>
+                            </div>
+
+                            <div class="col-8">
+                                <p class="p">+91 {{ \Auth::user()->mobile_number}}</p>
+                            </div>
+
+
+
+                            <div class="col-4">
+                                <p class="user-details">Department:-</p>
+                            </div>
+
+                            <div class="col-8">
+                                <p class="p">{{ getDepartmentName( \Auth::user()->department_id)}}</p>
+                            </div>
+
+                            <div class="col-4">
+                                <p class="user-details">Email ID:-</p>
+                            </div>
+
+                            <div class="col-8">
+                                <p class="p">{{ \Auth::user()->email}}</p>
+                            </div>
+                        </div>
+
+
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+        </form>
+
+        <div class="modal-footer">
+            <div class="modal fade" id="myModal3" data-backdrop="static"
+                style="margin-left:-10px; margin-top:250px;">
+                <div class="modal-dialog modal-dialog-scrollable">
+                    <div class="modal-content text-center">
+                        <div class="card-header" style="background-color:rgb(3, 142, 220);">
+                            <h3 class="card-title" style="color:white; font-weight:900;">
+                                Signature Log
+                            </h3>
+                        </div>
+                        <div class="modal-body modal-dialog-scrollable" style="height:200px !important">
+                            <table border="1" id="table_log">
+                                <thead>
+                                    <tr>
+                                        <th>S.no</th>
+                                        <th>Date of Change</th>
+                                        <th>Signature</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="log">
+
+
+                                </tbody>
+                            </table>
+                            <br>
+
+                        </div>
+                        <div class="text-center"
+                            style="display:block; margin-top:15px !important; margin-bottom:10px;">
+                            <a href="#" data-dismiss="modal">
+                                <button class="btn btn-primary page_load">OK</button>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="modal fade" id="passwordModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content shadow border-0">
+
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-key-fill me-2"></i>Set New Password
+                </h5>
+                <button type="button" id="show_alert" class="close btn_dis close-btn-modal" data-dismiss="modal">X</button>
+
+            </div>
+
+            <div class="modal-body">
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">User Email</label>
+                    <input type="text" id="email" class="form-control" value="{{ Auth::user()->email }}"
+                        disabled>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Current Password</label>
+                    <input type="password" id="current_password" class="form-control" placeholder="Enter current password">
+                    <div class="input-group-append" style="position: fixed; margin-left: 40%; margin-top: -38px; width: 61%;">
+                        <span class="input-group-text toggle-password" id="toggle-password"
+                            onclick="togglePasswordVisibility('current_password')" style="padding: 10px;cursor: pointer;">
+                            <i class="fa fa-eye-slash" aria-hidden="true"></i>
+                        </span>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">New Password</label>
+                    <input type="password" id="new_password" class="form-control" placeholder="Enter new password">
+                    <div class="input-group-append" style="position: fixed; margin-left: 40%; margin-top: -38px; width: 61%;">
+                        <span class="input-group-text toggle-password" id="toggle_password_new"
+                            onclick="togglePasswordVisibility('new_password')" style="padding: 10px;cursor: pointer;">
+                            <i class="fa fa-eye-slash" aria-hidden="true"></i>
+                        </span>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Confirm Password</label>
+                    <input type="password" id="confirm_password" class="form-control" placeholder="Re-enter password">
+                    <div class="input-group-append" style="position: fixed; margin-left: 40%; margin-top: -38px; width: 61%;">
+                        <span class="input-group-text toggle-password" id="Confirm-toggle-password"
+                            onclick="togglePasswordVisibility('confirm_password')" style="padding: 10px;cursor: pointer;">
+                            <i class="fa fa-eye-slash" aria-hidden="true"></i>
+                        </span>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="modal-footer" style="height:inherit !important;">
+                <button class="btn btn-success rounded-pill" id="changePasswordBtn" style="padding:10px 30px; margin-top:0px !important; border-radius:20px !important;">
+                    <i class="bi bi-arrow-repeat me-1"></i> Update Password
+                </button>
+
+            </div>
+
+        </div>
+    </div>
+</div>
+
+
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<link rel="stylesheet" href="{{ asset('css/style.css') }}">
+<!-- Include SweetAlert CDN in your HTML file -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+    @if(\Auth::user() -> signature_status == 0)
+    $(document).ready(function() {
+        $('#myModal').modal({
+            backdrop: 'static',
+            keyboard: false
+        }, 'show');
+
+
+        $('.btn_dis').prop('disabled', true);
+
+    });
+    @endif
+</script>
+
+<script>
+    function confirmRedirect() {
+        Swal.fire({
+
+            text: 'If you need set a signature go to dashbord page then cilck and set signature.',
+
+        }).then((result) => {
+
+        });
+
+
+        return false;
+    }
+</script>
+<script>
+    function previewFile() {
+        var preview = document.getElementById('output');
+        var file = document.querySelector('input[type=file]').files[0];
+        var reader = new FileReader();
+
+        reader.onloadend = function() {
+            preview.src = reader.result;
+        }
+
+        if (file) {
+            reader.readAsDataURL(file);
+        } else {
+            preview.src = "";
+        }
+    }
+    $("#upload").change(function() {
+        $("#imagePlaceholder").hide();
+    });
+</script>
+
+<script>
+    $(document).ready(function() {
+        var currentUrl = window.location.href;
+        $('.forBorder').each(function() {
+            var linkUrl = $(this).attr('href');
+            if (currentUrl.includes(linkUrl)) {
+                $(this).addClass('active').css({
+                    color: 'rgb(3, 142, 220)',
+                    borderBottom: '2px solid #038edc'
+                });
+            }
+        });
+        $('.forBorderDropdown,.individual_logs,.report_dropdown').each(function() {
+            var linkUrl = $(this).attr('href');
+            if (currentUrl.includes(linkUrl)) {
+                $(this).addClass('active').css({
+                    color: 'rgb(3, 142, 220)',
+                });
+            }
+        });
+
+    });
+
+    document.addEventListener("DOMContentLoaded", function() {
+
+        var masterMenuLinks = document.querySelectorAll('.forBorderDropdown');
+        var masterDropdownToggle = document.querySelector('.master');
+
+        for (var i = 0; i < masterMenuLinks.length; i++) {
+            if (window.location.href.includes(masterMenuLinks[i].href)) {
+                masterDropdownToggle.classList.add('active');
+                masterDropdownToggle.style.color = 'rgb(3, 142, 220)';
+                masterDropdownToggle.style.borderBottom = '2px solid #038edc';
+                break;
+            }
+        }
+    });
+    document.addEventListener("DOMContentLoaded", function() {
+
+        var masterMenu = document.querySelectorAll('.individual_logs');
+        var masterDropdown = document.querySelector('.logs');
+
+        for (var i = 0; i < masterMenu.length; i++) {
+            if (window.location.href.includes(masterMenu[i].href)) {
+                masterDropdown.classList.add('active');
+                masterDropdown.style.color = 'rgb(3, 142, 220)';
+                masterDropdown.style.borderBottom = '2px solid #038edc';
+                break;
+            }
+        }
+    });
+
+    document.addEventListener("DOMContentLoaded", function() {
+
+        var masterMenu = document.querySelectorAll('.report_dropdown');
+        var masterDropdown = document.querySelector('.report');
+
+        for (var i = 0; i < masterMenu.length; i++) {
+            if (window.location.href.includes(masterMenu[i].href)) {
+                masterDropdown.classList.add('active');
+                masterDropdown.style.color = 'rgb(3, 142, 220)';
+                masterDropdown.style.borderBottom = '2px solid #038edc';
+                break;
+            }
+        }
+    });
+</script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<script>
+    $(document).ready(function() {
+        $('#photoInput').change(function() {
+            let formData = new FormData();
+            formData.append('image', $(this)[0].files[0]);
+
+            $.ajax({
+                url: '{{ route("upload.image") }}',
+                method: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                },
+                success: function(response) {
+                    // Update the src attribute of the img tag
+                    $('#profileImage').attr('src', '{{ asset('
+                        ') }}' + response.image);
+                    $('#Profile_Image').attr('src', '{{ asset('
+                        ') }}' + response.image);
+
+                    console.log('Image uploaded successfully!', response);
+                },
+                error: function(xhr, status, error) {
+                    console.error('Upload failed:', error);
+                }
+            });
+        });
+    });
+
+    // $(document).ready(function () {
+    //     // Add click event listener to the X button
+    //     $('#show_alert').on('click', function () {
+    //         // Check the user's signature status 
+    //             location.reload(true);
+    //     });
+    // });
+    $(document).ready(function() {
+        // Add click event listener to the welcome text
+        $('.welcomeText').on('click', function() {
+            // Trigger the modal opening
+            $('#myModal').modal('show');
+        });
+    });
+</script>
+<script>
+    function setButtonLoading(btn, isLoading) {
+        const $btn = $(btn);
+        $btn.prop('disabled', isLoading);
+        $btn.find('.spinner-border').toggleClass('d-none', !isLoading);
+        $btn.find('.btn-text').toggleClass('d-none', isLoading);
+    }
+
+    $(document).ready(function() {
+
+
+        const passwordModal = new bootstrap.Modal(document.getElementById('passwordModal'));
+
+        $('#passwordChangeBtn').on('click', function(e) {
+            e.preventDefault();
+            passwordModal.show();
+
+        });
+
+
+        // CHANGE PASSWORD
+        $('#changePasswordBtn').on('click', function() {
+            let formData = new FormData();
+                        formData.append('user_email', $('#email').val());
+
+            formData.append('current_password', $('#current_password').val());
+            formData.append('new_password', $('#new_password').val());
+            formData.append('confirm_password', $('#confirm_password').val());
+
+            $.ajax({
+                url: '{{ route("password.change") }}',
+                method: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                },
+                success: function(res) {
+                    alert(res.message);
+                    if (res.status) {
+                        passwordModal.hide();
+                        window.location.href = '/admin/logout';
+                    }
+                }
+            });
+        });
+
+    });
+
+    function togglePasswordVisibility(fieldId) {
+        const passwordInput = document.getElementById(fieldId);
+        const toggleButton = document.getElementById(`toggle-${fieldId}`);
+
+        if (passwordInput.type === "password") {
+            passwordInput.type = "text";
+            toggleButton.innerHTML = '<i class="fa fa-eye" aria-hidden="true"></i>';
+        } else {
+            passwordInput.type = "password";
+            toggleButton.innerHTML = '<i class="fa fa-eye-slash" aria-hidden="true"></i>';
+        }
+    }
+</script>

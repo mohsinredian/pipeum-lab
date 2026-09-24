@@ -1,0 +1,2912 @@
+@extends('admin.layout.master', ['page_title' => 'Create NV Service'])
+@push('styles')
+<style>
+    .dataTables_filter>label {
+        float: right;
+    }
+
+
+    .pagination {
+        float: right;
+    }
+
+    .delete_all_materials {
+        background-color: rgb(3, 142, 220) !important;
+        width: 110px !important;
+        height: 35px !important;
+        color: white !important;
+        margin-top: 2px;
+    }
+
+    .delete_all_services {
+        background-color: rgb(3, 142, 220) !important;
+        width: 110px !important;
+        height: 35px !important;
+        color: white !important;
+        margin-top: 2px;
+    }
+
+    .mandatory_input {
+        color: red;
+    }
+
+    .popup {
+        display: none;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background-color: #fff;
+        border: 1px solid #000;
+        padding: 20px;
+        z-index: 999;
+    }
+
+    .ck.ck-balloon-panel.ck-powered-by-balloon .ck.ck-powered-by a {
+        display: none !important;
+    }
+</style>
+@endpush
+
+@section('content')
+<!-- Content Header (Page header) -->
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1 class="m-0">Manage NV Service</h1>
+            </div><!-- /.col -->
+
+            <div class="col-sm-6">
+                <ol class="breadcrumb float-sm-right">
+                    <li class="breadcrumb-item"><a href="{{ URL::to('/admin/dashboard') }}">Home</a></li>
+                    <li class="breadcrumb-item active">NV Service</li>
+                </ol>
+            </div><!-- /.col -->
+        </div><!-- /.row -->
+    </div><!-- /.container-fluid -->
+</div>
+<!-- /.content-header -->
+<!-- Main content -->
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <!-- left column -->
+            <div class="col-md-12">
+                <!-- general form elements -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Need Validation Service Details<br>
+                            NV Number: {{'NV' . '/' . $nv->budget_type . '/' . $nv->fiscal_year . '/' . getDepartmentNameByPro($nv->department_id). '/' . $nv->service->name . '/' . $nv->id}}</h3>
+                    </div>
+                    <!-- /.card-header -->
+                    <!-- form start -->
+                    <form id="create_nv_service">
+                        @csrf
+                        <input type="hidden" class="form-control" name="budget_type" id="budget_type" value="{{$nv->budget_type  }}">
+                        <input type="hidden" class="form-control" name="fiscal_year" id="fiscal_year" value="{{$nv->fiscal_year  }}">
+                        <input type="hidden" class="form-control" name="dept_id" id="dept_id" value="{{ getDepartmentNameByPro($nv->department_id) }}">
+                        <input type="hidden" class="form-control" name="nvid" id="nvid" value="{{$nv->id  }}">
+                        <input type="hidden" class="form-control" name="services_id" id="services_id" value="{{$nv->service_id  }}">
+                        <input type="hidden" class="form-control" name="nv_id" id="nv_id"
+                            value="{{ request()->segment(4) }}" placeholder="Enter DOP Refrence Number">
+                        <input type="hidden" class="form-control" name="company_id" id="company_id"
+                            value="{{ request()->segment(5) }}" placeholder="Enter DOP Refrence Number">
+                        <input type="hidden" class="form-control" name="service_id" id="service_id"
+                            value="{{ $service_details != '' ? $service_details->id : '' }}"
+                            placeholder="service_id">
+                        <div class="card-body">
+                            <div class="form-group ">
+                                <div class="row">
+                                    <div class="col-xl-4 col-lg-4 col-md-4">
+                                        <div class="form-group">
+                                            <label for="exampleFormControlSelect1">Sub-Department Name</label>
+                                            <select class="form-control" id="dept_id" name="dept_id" readonly>
+                                                <!-- <option value="">Select Department</option> -->
+                                                @foreach ($departments as $department)
+                                                <option
+                                                    value="{{ $department->id }}" @if ($department->id == ($service_details != '' ? $service_details->dept_id : '')) selected="selected" @endif>
+                                                    {{ $department->name }}
+                                                </option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                    </div>
+
+
+                                    <div class="col-xl-4 col-lg-4 col-md-4">
+                                        <div class="form-group">
+                                            <label for="exampleFormControlInput1">DOP Reference Number </label>
+                                            <input type="text" class="form-control" name="dop_ref_no" id="dop_ref_no"
+                                                placeholder="Enter DOP Reference Number"
+                                                value="{{ $service_details != '' ? $service_details->dop_ref_no : '' }}">
+                                            <div class="common-error form-text dop_ref_no_error"></div>
+                                        </div>
+                                    </div>
+                                    <div class="col-xl-4 col-lg-4 col-md-4">
+                                        <div class="form-group">
+                                            <label for="exampleFormControlSelect1">Proposal Type</label>
+                                            <select class="form-control" id="proposal_type" name="proposal_type">
+                                                <!-- <option value="">-- Select Proposal Type --</option> -->
+                                                <option value="One Time" {{ $needvalidation["proposal_type"] == "One Time" ? 'selected' : '' }}>One Time</option>
+                                                <option value="Regular" {{ $needvalidation["proposal_type"] == "Regular" ? 'selected' : '' }}>Regular</option>
+                                            </select>
+
+                                        </div>
+                                    </div>
+                                </div>
+
+
+                                <div class="col-12 col-xs-12 mb-2">
+                                    <div class="form-group">
+                                        <label for="exampleFormControlInput1">Proposal Name (Max 200
+                                            Characters)</label>
+                                        <textarea name="proposal_name" id="proposal_name" cols="2" rows="3" class="form-control"
+                                            placeholder=" Enter Proposal Name" value="">{{ $service_details != '' ? $service_details->proposal_name : '' }}</textarea>
+                                        <p id="proposal_count" class="text-muted"></p>
+                                        <div class="common-error form-text proposal_name_error"></div>
+                                    </div>
+                                </div>
+
+                                <div class="col-12 mb-2">
+                                    <div class="form-group">
+                                        <label for="exampleFormControlInput1">Background (Max 2500 Characters)</label>
+                                        <textarea name="background" id="background" cols="2"
+                                            rows="10" class="form-control"
+                                            placeholder=" Enter Background" value="{{ $service_details != '' ? $service_details->background : '' }}">{{ $service_details != '' ? $service_details->background : '' }}</textarea>
+                                        <div id="charCount1" class="text-muted"></div>
+                                        <div id="validationMessage1" class="text-danger"></div>
+                                        <div class="common-error form-text background_error"></div>
+                                    </div>
+                                </div>
+                                <div class="col-12 mb-2">
+                                    <div class="form-group">
+                                        <label for="exampleFormControlInput1">Broad Justification (Max 500
+                                            Characters)</label>
+                                        <textarea name="broad_just" id="broad_just" cols="2" rows="10" class="form-control"
+                                            placeholder=" Enter Broad Justification"
+                                            value="{{ $service_details != '' ? $service_details->broad_just : '' }}">{{ $service_details != '' ? $service_details->broad_just : '' }}</textarea>
+                                        <div id="charCount2" class="text-muted"></div>
+                                        <div id="validationMessage2" class="text-danger"></div>
+                                        <div class="common-error form-text broad_just_error"></div>
+                                    </div>
+                                </div>
+
+                                <div class="col-12 mb-2">
+                                    <div class="form-group">
+                                        <label for="exampleFormControlInput1">Detailed Justification (Max 2500
+                                            Characters)</label>
+                                        <textarea name="just_of_proposal" id="just_of_proposal" cols="2" rows="10" class="form-control"
+                                            placeholder=" Enter Detailed Justification"
+                                            value="{{ $service_details != '' ? $service_details->just_of_proposal : '' }}">{{ $service_details != '' ? $service_details->just_of_proposal : '' }}</textarea>
+                                        <div class="col-md-6 mt-2 d-flex align-items-center gap-2">
+                                            <input type="file" class="form-control" name="just_prop_upload[]" multiple>
+
+                                            @if (!empty($service_doc) && is_object($service_doc) && !empty($service_doc->just_prop_upload))
+                                            <a class="download-all"
+                                                id="just_prop_upload-{{ $service_doc->id }}"
+                                                href="#"
+                                                data-file-type="just_prop_upload"
+                                                data-files="{{ $service_doc->just_prop_upload }}">
+                                                <i class="fa fa-download ml-2" title="Download All"></i>
+                                            </a>
+
+                                            <a class="btn btn-sm btn-clean btn-icon delete_attachments"
+                                                data-file-id="{{$service_doc->id }}"
+                                                data-file-type="just_prop_upload"
+                                                data-download-id="just_prop_upload-{{$service_doc->id}}"
+                                                id="just_prop_upload-{{$service_doc->id}}"
+                                                href="#">
+                                                <i class="fas fa-trash text-danger"></i>
+                                            </a>
+                                            @endif
+                                        </div>
+                                        <div id="charCount3" class="text-muted"></div>
+                                        <div id="validationMessage3" class="text-danger"></div>
+                                        <div class="common-error form-text just_of_proposal_error"></div>
+                                    </div>
+                                </div>
+
+                                @php
+                                $year1 = explode(',', $service_details != '' ? $service_details->past_3_year_actual_cost_fy : '');
+                                $year2 = explode(',', $service_details != '' ? $service_details->past_3_year_actual_cost : '');
+                                $year3 = explode(',', $service_details != '' ? $service_details->past_3_year_actual_cost_service: '');
+                                $year = $nv_year->fiscal_year;
+                                $yr_l= substr($year, 5);
+                                $yr_f= substr($year, 0,4);
+
+                                @endphp
+
+                                <div class="col-12 mb-2">
+                                    <div class="accordion" id="accordionExample">
+                                        <div class="accordion-item">
+                                            <h6 class="accordion-header" type="button" data-toggle="collapse" data-target="#collapseOne"
+                                                aria-expanded="true" aria-controls="collapseOne">
+                                                Past 3 Years Actual Cost Trend For Services (In Lacs)
+                                            </h6>
+
+                                            <div id="collapseOne" class="collapse show" aria-labelledby="collapseOne"
+                                                data-parent="#accordionExample">
+                                                <div class="card-body">
+                                                    <div class="after-add-more">
+                                                        <div class="row">
+                                                            <div class="col-xl-3 col-lg-3 col-md-6">
+                                                                <input type="text" class="form-control" name="past_3_year_actual_cost_fy[]"
+                                                                    id="past_3_year_actual_cost_fy" value="{{$yr_f-1}}-{{$yr_l-1}}"
+                                                                    placeholder="{{$yr_f-1}}-{{$yr_l-1}}" readonly>
+                                                            </div>
+
+                                                            <div class="col-xl-3 col-lg-3 col-md-6">
+                                                                <input type="text" class="form-control decimal" name="past_3_year_actual_cost[]"
+                                                                    id="past_3_year_actual_cost1" placeholder="₹"
+                                                                    value="{{ isset($year2[0]) ? $year2[0] : '' }}">
+                                                                <!-- <input type="text" class="form-control"
+                                                                            name="past_3_year_actual_cost[]"
+                                                                            id="past_3_year_actual_cost"
+                                                                            placeholder="₹"
+                                                                            value=""> -->
+                                                            </div>
+
+                                                            <div class="col-xl-3 col-lg-3 col-md-6">
+                                                                <input type="text" class="form-control" name="past_3_year_actual_cost_service[]"
+                                                                    id="past_3_year_actual_cost_service1"
+                                                                    value="{{ isset($year3[0]) ? $year3[0] : '' }}" placeholder="Services">
+                                                            </div>
+                                                        </div>
+                                                        <br>
+                                                        <div class="row">
+                                                            <div class="col-xl-3 col-lg-3 col-md-6">
+                                                                <input type="text" class="form-control" name="past_3_year_actual_cost_fy[]"
+                                                                    id="past_3_year_actual_cost_fy" value="{{$yr_f-2}}-{{$yr_l-2}}"
+                                                                    placeholder="{{$yr_f-2}}-{{$yr_l-2}}" readonly>
+                                                            </div>
+
+                                                            <div class="col-xl-3 col-lg-3 col-md-6">
+                                                                <input type="text" class="form-control decimal" name="past_3_year_actual_cost[]"
+                                                                    id="past_3_year_actual_cost2" placeholder="₹"
+                                                                    value="{{ isset($year2[1]) ? $year2[1] : '' }}">
+                                                                <!-- <input type="text" class="form-control"
+                                                                            name="past_3_year_actual_cost[]"
+                                                                            id="past_3_year_actual_cost"
+                                                                            placeholder="₹"
+                                                                            value=""> -->
+                                                            </div>
+
+                                                            <div class="col-xl-3 col-lg-3 col-md-6">
+                                                                <input type="text" class="form-control" name="past_3_year_actual_cost_service[]"
+                                                                    id="past_3_year_actual_cost_service2"
+                                                                    value="{{ isset($year3[1]) ? $year3[1] : '' }}" placeholder="Services">
+                                                            </div>
+                                                        </div>
+                                                        <br>
+                                                        <div class="row">
+                                                            <div class="col-xl-3 col-lg-3 col-md-6">
+                                                                <input type="text" class="form-control" name="past_3_year_actual_cost_fy[]"
+                                                                    id="past_3_year_actual_cost_fy" value="{{$yr_f-3}}-{{$yr_l-3}}"
+                                                                    placeholder="{{$yr_f-3}}-{{$yr_l-3}}" readonly>
+                                                            </div>
+
+                                                            <div class="col-xl-3 col-lg-3 col-md-6">
+                                                                <input type="text" class="form-control decimal" name="past_3_year_actual_cost[]"
+                                                                    id="past_3_year_actual_cost3" placeholder="₹"
+                                                                    value="{{ isset($year2[2]) ? $year2[2] : '' }}">
+                                                                <!-- <input type="text" class="form-control"
+                                                                            name="past_3_year_actual_cost[]"
+                                                                            id="past_3_year_actual_cost"
+                                                                            placeholder="₹"
+                                                                            value=""> -->
+                                                            </div>
+
+                                                            <div class="col-xl-3 col-lg-3 col-md-6">
+                                                                <input type="text" class="form-control decimal" name="past_3_year_actual_cost_service[]"
+                                                                    id="past_3_year_actual_cost_service3"
+                                                                    value="{{ isset($year3[2]) ? $year3[2] : '' }}" placeholder="Services">
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                @php
+                                $selectedYear = $service_details != '' ? $service_details->implements_years : '';
+
+                                @endphp
+                                @if(!empty($selectedYear))
+                                <input type="hidden" name="implements_years" value="{{$selectedYear ?? ''}}">
+                                <div class="col-12 mb-2">
+                                    <div class="accordion" id="accordionExample">
+                                        <div class="accordion-item">
+                                            <h6 class="accordion-header" type="button" data-toggle="collapse" data-target="#collapseimple" aria-expanded="true" aria-controls="collapseimple">
+                                                Implementation Period
+                                            </h6>
+                                            <div id="collapseimple" class="collapse show" aria-labelledby="headingOne" data-parent="#accordionExample">
+                                                <div class="card-body">
+
+                                                    @php
+                                                    $selectedYear = $service_details != '' ? $service_details->implements_years : '';
+                                                    $from = explode(',', $service_details != '' ? $service_details->implementation_period_from : '');
+                                                    $to = explode(',', $service_details != '' ? $service_details->implementation_period_to : '');
+                                                    $service = explode('.,', $service_details != '' ? $service_details->implementation_plan_year_wise : '');
+
+
+                                                    @endphp
+                                                    <input type="hidden" id="selectedYear" value="{{ $selectedYear }}">
+                                                    <div class="row after-add-more-third">
+                                                        <div class="col-12">
+                                                            <div class="row">
+                                                                <div class="col-xl-6 col-lg-6 col-md-6 col-sm-12 col-xs-12 mb-2">
+                                                                    <label for="exampleFormControlSelect">Select Year</label>
+                                                                    {{-- ()" --}}
+                                                                    <select class="form-control" id="exampleFormControlSelect" name="implements_years" onchange="editDuplicateColumns()" style="display: inline-block; width:200px;" disabled>
+                                                                        <option value="">Select Year</option>
+                                                                        <option value="1" {{ $selectedYear == '1' ? 'selected' : '' }}>1</option>
+                                                                        <option value="2" {{ $selectedYear == '2' ? 'selected' : '' }}>2</option>
+                                                                        <option value="3" {{ $selectedYear == '3' ? 'selected' : '' }}>3</option>
+                                                                    </select>
+                                                                </div>
+                                                            </div>
+                                                            <div class="row">
+                                                                <div class="col-12">
+                                                                    {{-- Here Ashu --}}
+                                                                    <div id="" class="row">
+                                                                        <!-- Original columns -->
+                                                                        <div class="original-columns row ">
+                                                                            @for ($i = 0; $i < $selectedYear; $i++)
+                                                                                <div class="col-xl-6 col-lg-6 col-md-6 col-sm-12 col-xs-12 mb-2">
+                                                                                <div class="form-group">
+                                                                                    <label for="exampleFormControlInput1">Implementation
+                                                                                        Period From </label>
+                                                                                    <input type="date" class="form-control" name="imp_from[]" id="imp_from" value="{{ isset($from[$i]) ? $from[$i] : '' }}" placeholder="Enter Benefit" max="9999-12-31">
+                                                                                </div>
+                                                                        </div>
+
+                                                                        <div class="col-xl-6 col-lg-6 col-md-6 col-sm-12 col-xs-12 mb-2">
+                                                                            <div class="form-group">
+                                                                                <label for="exampleFormControlInput1">Implementation
+                                                                                    Period To</label>
+                                                                                <input type="date" class="form-control" name="imp_to[]" id="imp_to" value="{{ isset($to[$i]) ? $to[$i] : '' }}" placeholder="Enter Benefit" max="9999-12-31">
+                                                                            </div>
+                                                                        </div>
+
+                                                                        <div class="col-12 mb-2">
+                                                                            <div class="form-group">
+                                                                                <label for="exampleFormControlInput1">Implementation
+                                                                                    Plan Year Wise (Max 2500 Characters)</label>
+                                                                                <textarea name="imp_plan[]" id="imp_plan" cols="2" rows="10" class="form-control" placeholder="Enter Implementation Plan Year Wise">{{ isset($service[$i]) ? $service[$i] : '' }}</textarea>
+
+                                                                            </div>
+                                                                        </div>
+                                                                        @endfor
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                        </div>
+                                    </div>
+                                </div>
+                                @else
+                                <div class="col-12 mb-2">
+                                    <div class="accordion" id="accordionExample">
+                                        <div class="accordion-item">
+                                            <h6 class="accordion-header" type="button" data-toggle="collapse" data-target="#collapseimple" aria-expanded="true" aria-controls="collapseimple">
+                                                Implementation Period
+                                            </h6>
+                                            <div id="collapseimple" class="collapse show" aria-labelledby="headingOne" data-parent="#accordionExample">
+                                                <div class="card-body">
+
+                                                    @php
+                                                    $selectedYear = $service_details != '' ? $service_details->implements_years : '';
+                                                    $from = explode(',', $service_details != '' ? $service_details->implementation_period_from : '');
+                                                    $to = explode(',', $service_details != '' ? $service_details->implementation_period_to : '');
+                                                    $service = explode('.,', $service_details != '' ? $service_details->implementation_plan_year_wise : '');
+
+                                                    @endphp
+
+                                                    @foreach ($from as $key => $fromValue)
+                                                    <div class="row after-add-more-third">
+
+                                                        <div class="col-12">
+                                                            <div class="row">
+                                                                <div class="col-xl-6 col-lg-6 col-md-6 col-sm-12 col-xs-12 mb-2">
+                                                                    <label for="exampleFormControlSelect">Select
+                                                                        Year</label>
+                                                                    <select class="form-control" id="exampleFormControlSelect" name="implements_years" onchange="duplicateColumns()" style="display: inline-block; width:200px;">
+                                                                        <option value="">Select Year</option>
+                                                                        <option value="1" {{ ($service_details != '' ? $service_details->implements_years : '') == '1' ? 'selected' : '' }}>
+                                                                            1</option>
+                                                                        <option value="2" {{ ($service_details != '' ? $service_details->implements_years : '') == '2' ? 'selected' : '' }}>
+                                                                            2</option>
+                                                                        <option value="3" {{ ($service_details != '' ? $service_details->implements_years : '') == '3' ? 'selected' : '' }}>
+                                                                            3</option>
+                                                                    </select>
+                                                                    <div style="font-size:14px;" class="common-error form-text select_year_error"></div>
+                                                                </div>
+
+                                                            </div>
+
+                                                            <div class="row">
+                                                                <div class="col-12">
+                                                                    <div id="duplicateContainer" class="row" style="display: none;">
+                                                                        <!-- Original columns -->
+
+
+                                                                        <div class="original-columns row">
+                                                                            <div class="col-xl-6 col-lg-6 col-md-6 col-sm-12 col-xs-12 mb-2">
+                                                                                <div class="form-group">
+                                                                                    <label for="exampleFormControlInput1">Implementation
+                                                                                        Period From</label>
+                                                                                    <input type="date" class="form-control" name="imp_from[]" id="imp_from" value="{{ $service_details != '' ? $fromValue : '' }}" placeholder="Enter Benefit" max="9999-12-31">
+                                                                                </div>
+                                                                            </div>
+
+                                                                            <div class="col-xl-6 col-lg-6 col-md-6 col-sm-12 col-xs-12 mb-2">
+                                                                                <div class="form-group">
+                                                                                    <label for="exampleFormControlInput1">Implementation
+                                                                                        Period To</label>
+                                                                                    @php
+                                                                                    $toValue = isset($to[$key]) ? $to[$key] : '';
+                                                                                    @endphp
+                                                                                    <input type="date" class="form-control" name="imp_to[]" id="imp_to" value="{{ $service_details != '' ? $toValue : '' }}" placeholder="Enter Benefit" max="9999-12-31">
+                                                                                </div>
+                                                                            </div>
+                                                                            <div class="col-12 mb-2">
+                                                                                <div class="form-group">
+                                                                                    <label for="exampleFormControlInput1">Implementation
+                                                                                        Plan Year Wise (Max 2500
+                                                                                        Characters)</label>
+                                                                                    @php
+                                                                                    $serviceValue = isset($service[$key]) ? $service[$key] : '';
+                                                                                    @endphp
+                                                                                    <textarea name="imp_plan[]" id="imp_plan" class="form-control" placeholder="Enter Implementation Plan Year Wise">{{ $service_details != '' ? $serviceValue : '' }}</textarea>
+
+                                                                                </div>
+                                                                            </div>
+
+
+                                                                        </div>
+                                                                    </div>
+
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    @endforeach
+                                                </div>
+                                            </div>
+
+                                        </div>
+                                    </div>
+                                </div>
+                                @endif
+
+
+
+
+                                <div class="col-12 mb-2">
+                                    <div class="form-group">
+                                        <label for="exampleFormControlInput1">Benefit (Max 2500 Characters)</label>
+                                        <textarea name="benefit" id="benefit" cols="2" rows="10" class="form-control"
+                                            placeholder=" Enter Benefit" value="{{ $service_details != '' ? $service_details->benefit : '' }}">{{ $service_details != '' ? $service_details->benefit : '' }}</textarea>
+                                        <p id="benefit_count" class="text-muted"></p>
+                                        <div class="common-error form-text benefit_error"></div>
+                                    </div>
+                                </div>
+
+
+
+                                <!-- <div class="col-xl-6 col-lg-6 col-md-6 col-sm-12 col-xs-12 mt-3">
+                                        <div class="form-group">
+                                            <label for="exampleFormControlSelect1">Type of Proposal</label>
+                                            <select class="form-control" id="type_of_proposal" name="type_of_proposal">
+                                                <option value="" >Select Type of Proposal</option>
+
+                                                <option value="One-Time" {{ ($service_details != '' ? $service_details->type_of_proposal : '') == 'One-Time' ? 'selected' : '' }}>
+                                                    One-Time</option>
+
+                                                <option value="Regular"
+                                                    {{ ($service_details != '' ? $service_details->type_of_proposal : '') == 'Regular' ? 'selected' : '' }}>
+                                                    Regular</option>
+                                            </select>
+                                        </div>
+                                    </div> -->
+
+
+                                <div class="row">
+
+
+                                    <div class="col-xl-6 col-lg-6 col-md-6 mt-3">
+                                        <label>AMC/WO/RC Proposed Start Date</label>
+                                        <input type="date" id="amc_proposal_sdate"
+                                            value="{{ $service_details != '' ? $service_details->amc_proposal_sdate : '' }}"
+                                            name="amc_proposal_sdate" class="form-control" max="9999-12-31" placeholder="dd/mm/yy">
+                                    </div>
+
+
+                                    <div class="col-xl-6 col-lg-6 col-md-6 mt-3">
+                                        <label>AMC/WO/RC Proposed End Date</label>
+                                        <input type="date" id="amc_proposal_edate"
+                                            value="{{ $service_details != '' ? $service_details->amc_proposal_edate : '' }}"
+                                            name="amc_proposal_edate" class="form-control" max="9999-12-31" placeholder="dd/mm/yy">
+                                    </div>
+                                    @if($nv->budget_type == 'CAPEX')
+                                    <div class="col-12 mb-0 mt-4">
+                                        <div class="accordion derc_details" id="accordionExample">
+                                            <div class="accordion-item">
+                                                <h6 class="accordion-header" type="button" data-toggle="collapse" data-target="#collapsesix" aria-expanded="true" aria-controls="collapseFour">
+                                                    DERC Details </h6>
+
+                                                <div id="collapsesix" class="collapse show" aria-labelledby="headingOne" data-parent="#accordionExample">
+                                                    <div class="card-body">
+                                                        <div class="row">
+                                                            <div class="col-xl-6 col-lg-6 col-md-6">
+                                                                <div class="form-group">
+                                                                    <label for="exampleFormControlInput1">DERC Proposal
+                                                                        Number <br>(In case DERC proposal number not available, please leave the field blank)</label>
+                                                                    <input type="text" class="form-control" id="prop_number" name="prop_number" value="{{ $service_details != '' ? $service_details->prop_number : '' }}" placeholder="Enter Proposal Number">
+
+                                                                </div>
+                                                            </div>
+
+                                                            <div class="col-xl-6 col-lg-6 col-md-6 col-sm-12 col-xs-12 mb-0">
+                                                                <div class="form-group">
+                                                                    <label for="exampleFormControlInput1"><span style="visibility:hidden;">DERC Reference
+                                                                            No </span><br>DERC Reference
+                                                                        No</label>
+                                                                    <input type="text" class="form-control" id="derc_ref_no" name="derc_ref_no" value="{{ $service_details != '' ? $service_details->derc_ref_no : '' }}" placeholder="Enter DERC Reference No">
+                                                                    <span style="font-size:15px" class="derc_ref_no_error"></span><br>
+                                                                </div>
+                                                            </div>
+
+                                                            <!-- </div> -->
+
+                                                            <div class="col-xl-6 col-lg-6 col-md-6 col-sm-12 col-xs-12 mb-0">
+                                                                <div class="form-group">
+                                                                    <label for="exampleFormControlSelect1">DERC Approval
+                                                                        Status</label>
+                                                                    <select class="form-control" id="derc_approval" name="derc_approval">
+                                                                        <option value="">Select DERC Approval Status
+                                                                        </option>
+                                                                        <option value="Not Required" {{ ($service_details != '' ? $service_details->derc_approval : '') == 'Not Required' ? 'selected' : '' }}>
+                                                                            Not Required</option>
+                                                                        <option value="Approved" {{ ($service_details != '' ? $service_details->derc_approval : '') == 'Approved' ? 'selected' : '' }}>
+                                                                            Approved</option>
+                                                                        <option value="Pre Approved Buckets" {{ ($service_details != '' ? $service_details->derc_approval : '') == 'Pre Approved Buckets'
+                                                                                ? 'selected'
+                                                                                : '' }}>
+                                                                            Pre Approved Buckets</option>
+                                                                        <option value="DPR Submitted" {{ ($service_details != '' ? $service_details->derc_approval : '') == 'DPR Submitted' ? 'selected' : '' }}>
+                                                                            DPR Submitted</option>
+                                                                        <option value="DPR Not Submitted" {{ ($service_details != '' ? $service_details->derc_approval : '') == 'DPR Not Submitted' ? 'selected' : '' }}>
+                                                                            DPR Not Submitted</option>
+
+                                                                    </select>
+                                                                </div>
+                                                            </div>
+
+                                                            <div class="col-xl-6 col-lg-6 col-md-6 col-sm-12 col-xs-12 mb-0">
+                                                                <div class="form-group">
+                                                                    <label for="exampleFormControlInput1">DERC Approval
+                                                                        Date</label>
+                                                                    <input type="date" class="form-control" name="derc_app_date" id="derc_app_date" value="{{ $service_details != '' ? $service_details->derc_app_date : '' }}" max="9999-12-31">
+                                                                    <span style="font-size:15px;color:red;" class="app_date_error"></span><br>
+                                                                </div>
+                                                            </div>
+
+                                                        </div>
+
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    @endif
+
+                                    <div class="col-12 mt-4">
+                                        <div class="accordion" id="accordionExample">
+                                            <div class="accordion-item">
+                                                <h6 class="accordion-header" type="button" data-toggle="collapse" data-target="#collapseFour" aria-expanded="true" aria-controls="collapseFour">
+                                                    Service Details</h6>
+
+                                                <div id="collapseFour" class="collapse show" aria-labelledby="headingTwo" data-parent="#accordionExample">
+                                                    <div class="card-body">
+                                                        <form enctype="multipart/form-data" method="post" id="serviceboqform">
+                                                            <input type="hidden" class="form-control" name="nv_id" id="nv_id" value="{{ request()->segment(4) }}">
+                                                            <div class="row 
+                                                        after-add-more-four">
+                                                                @php
+                                                                $s1 = explode(',', $service_details != '' ? $service_details->service_code : '');
+                                                                $s2 = explode(',', $service_details != '' ? $service_details->ser_des : '');
+                                                                $s3 = explode(',', $service_details != '' ? $service_details->ser_rate_ref : '');
+                                                                $s4 = explode(',', $service_details != '' ? $service_details->ser_uom : '');
+                                                                $s5 = explode(',', $service_details != '' ? $service_details->ser_rate : '');
+                                                                $s6 = explode(',', $service_details != '' ? $service_details->ser_quantity : '');
+                                                                $s7 = explode(',', $service_details != '' ? $service_details->ser_total_amount : '');
+
+                                                                @endphp
+
+                                                                <div class="col-6 mb-0">
+                                                                    <div class="form-group">
+                                                                        <label for="exampleFormControlInput1">Service
+                                                                            code</label>
+                                                                        <input type="text" class="form-control" placeholder="Enter Service Code" name="service_code_0" id="service_code_0" value="" onkeyup="autofetchServiceCode()">
+                                                                        <div class="common-error form-text service_code_0_error"></div>
+                                                                    </div>
+                                                                </div>
+
+                                                                <!-- <div class="col-6 mb-0"> -->
+                                                                <div class="form-group">
+                                                                    <label for="exampleFormControlInput1">
+                                                                        <!-- Service
+                                                                                                                Description -->
+                                                                    </label>
+
+                                                                    <input type="hidden" name="ser_des_0" id="ser_des_0" value="" class="form-control" placeholder=" Enter Service Description">
+                                                                </div>
+                                                                <!-- </div> -->
+
+                                                                <!-- <div class="col-6 mb-0"> -->
+                                                                <div class="form-group">
+                                                                    <label for="exampleFormControlInput1"></label>
+                                                                    <input type="hidden" class="form-control" placeholder="Enter Rate Reference" name="ser_rate_ref" id="ser_rate_ref" value="">
+                                                                </div>
+
+                                                                <!-- </div> -->
+
+                                                                <!-- <div class="col-6 mb-0"> -->
+                                                                <div class="form-group">
+                                                                    <label for="exampleFormControlInput1">
+                                                                        <!-- UoM -->
+                                                                    </label>
+                                                                    <input type="hidden" class="form-control" name="ser_uom_0" id="ser_uom_0" value="" placeholder="Enter Uom">
+                                                                </div>
+                                                                <!-- </div> -->
+
+                                                                <div class="col-6 mb-0">
+                                                                    <div class="form-group">
+                                                                        <label for="exampleFormControlInput1">Rate</label>
+                                                                        <input type="text" class="form-control decimal" placeholder="Enter Rate" name="ser_rate" value="" id="ser_rate" onblur="sumSolar()">
+                                                                        <div class="common-error form-text ser_rate_error"></div>
+                                                                    </div>
+
+                                                                </div>
+
+                                                                <div class="col-6 mb-0">
+                                                                    <div class="form-group">
+                                                                        <label for="exampleFormControlInput1">Quantity
+                                                                            Required</label>
+                                                                        <input type="number" class="form-control decimal" placeholder="Enter Quantity Required" name="ser_quantity" id="ser_quantity" value="" onblur="sumSolar()" onkeypress="return isNumberKey(event)" oninput="validateInput(this)">
+                                                                        <div class="common-error form-text ser_quantity_error"></div>
+                                                                    </div>
+                                                                </div>
+
+                                                                <!-- <div class="col-6 mb-0"> -->
+                                                                <div class="form-group">
+                                                                    <label for="exampleFormControlInput1">
+                                                                        <!-- Total
+                                                                                                                Amount -->
+                                                                    </label>
+                                                                    <input type="hidden" class="form-control" placeholder="Enter Total Amount" name="ser_total_amount" id="ser_total_amount" value="" onblur="sumSolar()">
+                                                                </div>
+                                                                <!-- </div> -->
+
+
+                                                                <div class="col-6 mb-0">
+
+                                                                </div>
+                                                                <br>
+
+                                                                <div class="col-6 mb-0">
+                                                                    <div class="form-group change">
+                                                                        <br>
+                                                                        <button type="button" class="btn btn-success" id="serviceBoqsaves" value="Save">Save</button>
+                                                                    </div>
+                                                                </div><br>
+
+                                                                <div class="col-6 mb-0">
+                                                                    <div class="form-group ">
+                                                                    </div>
+                                                                </div>
+                                                        </form>
+
+
+                                                        <form enctype="multipart/form-data" method="post" id="uploads-form" style="display: flex; justify-content: space-between;">
+                                                            <div class="col-12">
+                                                                <div class="form-group">
+                                                                    <label for="serviceboq">Upload
+                                                                        Service BOQ
+                                                                        <a class="ml-2" download="{{ asset('materials-doc/Service BOQ.xls') }}" href="{{ asset('materials-doc/Service BOQ.xls') }}"><i class="fa fa-download" title="Download"></i></a>
+                                                                    </label>
+                                                                    <input type="file" class="form-control" id="serviceboq1" name="serviceboq">
+                                                                </div>
+                                                                <input type="hidden" class="form-control pdf_order" name="nv_id" id="nv_id" value="{{ request()->segment(4) }}">
+                                                            </div>
+
+
+
+                                                            <div class="col-12">
+                                                                <div class="form-group">
+                                                                    <label style="visibility:hidden">Upload</label>
+                                                                    <br>
+                                                                    <button type="button" class="btn btn-success" id="serviceBoqUploaded">Upload</button>
+                                                                </div>
+                                                            </div>
+                                                        </form>
+
+                                                    </div>
+
+                                                    <div class="row">
+                                                        <div class="col-12">
+                                                            <div class="card">
+                                                                <div class="card-body table-responsive">
+                                                                    <div>
+
+                                                                        <div class="btn-group-toggle" data-toggle="buttons" style="margin-left:28px;">
+
+                                                                            <label for="delete_all_service">
+                                                                                <a href="javascript:;" data-id="{{ request()->segment(4) }}" class="btn btn-sm btn-clean btn-icon delete_all_services" title="Delete">Delete All<i class="fas fa-trash text-danger"></i></a>
+                                                                            </label>
+
+                                                                        </div>
+                                                                    </div>
+                                                                    <div class="card-body table-responsive">
+                                                                        @if (Session::has('success2'))
+                                                                        <div class="alert alert-success alert-dismissible">
+                                                                            {{ Session::get('success2') }}
+                                                                        </div>
+                                                                        @endif
+                                                                        <input type="hidden" name="" id="boq_id" value="">
+                                                                        <table id="nv_serviceBoq_datatables" class="table table-bordered">
+                                                                            <input type="hidden" class="form-control" name="nv_id" id="nv_id" value="{{ request()->segment(4) }}">
+                                                                            <thead>
+                                                                                <tr>
+                                                                                    <th class="text-center" width="5%">
+                                                                                        S.No</th>
+
+                                                                                    <th class="text-center" width="5%">
+                                                                                        NV Id</th>
+                                                                                    <th>Service Code
+                                                                                    </th>
+
+                                                                                    <th>Service
+                                                                                        Description</th>
+                                                                                    <th width="15%">
+                                                                                        UOM</th>
+                                                                                    <th width="10%">
+                                                                                        Rate</th>
+                                                                                    <th width="15%">
+                                                                                        Quantity</th>
+                                                                                    <th width="15%">
+                                                                                        Amount (Rs.)
+                                                                                    </th>
+                                                                                    <th width="15%">
+                                                                                        Action</th>
+
+                                                                                </tr>
+                                                                            </thead>
+                                                                        </table>
+                                                                    </div>
+                                                                </div>
+
+
+                                                            </div>
+
+                                                            <div class="row">
+
+                                                                <?php $total = 0; ?>
+                                                                @foreach ($service_import as $key => $s_import)
+                                                                @php
+
+                                                                $total += (float) $s_import->amount;
+                                                                @endphp
+                                                                @endforeach
+
+                                                                <div class="col-4 mb-0">
+                                                                    <div class="form-group">
+                                                                        <label for="exampleFormControlInput1">Total Amount For Services &nbsp;<a href="#" id="RefreshBtn3" title="Refresh"><i class="fas fa-sync-alt text-info"></i></a>
+                                                                            <br>
+                                                                            <span style="color:red; font-size:12px"><strong>(Please click on the refresh icon next to 'Total Amount For Services' in case you edit the Service BOQ)</strong></span></label>
+                                                                        <input type="text" class="form-control" placeholder="Budget Available" id="total_ser_amo" value="{{ $total ?? null }}" readonly>
+                                                                        <input type="hidden" name="total_ser_amo" value="{{ $total ?? null }}">
+
+
+                                                                    </div>
+                                                                </div>
+                                                                @if($nv->budgetary_provision=="Additional" || $selectedYear == null)
+                                                                <div class="col-2 mb-0 mt-3">
+                                                                    <br><span> <label>Tax (In %) </label><br></span>
+                                                                    <select class="form-control" id="tax5" name="tax5">
+                                                                        <option value="">Select Tax</option>
+                                                                        @foreach($taxes as $tax)
+                                                                        <option value="{{$tax->tax}}" @if ($tax->tax == ($service_details != '' ? $service_details->tax5 : '')) selected="selected" @endif>{{$tax->tax}}</option>
+                                                                        @endforeach
+                                                                    </select>
+                                                                </div>
+                                                                @endif
+                                                            </div>
+
+                                                        </div>
+
+                                                    </div>
+                                                    @if($nv->budgetary_provision=="Approved")
+                                                    @php
+                                                    $Imp_year = explode('-',$nv->fiscal_year);
+                                                    $Imp = $nv->fiscal_year;
+                                                    @endphp
+                                                    @if($selectedYear != null)
+                                                    <div class="col-12 mb-0">
+                                                        <div class="accordion" id="accordionExample">
+                                                            <div class="accordion-item">
+                                                                <h6 class="accordion-header" type="button" data-toggle="collapse" data-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
+                                                                    Provisional Years Amount For Service BOQ
+                                                                </h6>
+
+                                                                <div id="collapseOne" class="collapse show" aria-labelledby="collapseOne" data-parent="#accordionExample">
+                                                                    <div class="card-body">
+                                                                        <div class="after-add-more">
+                                                                            @if($selectedYear == 1 || $selectedYear == 2 || $selectedYear == 3)
+                                                                            <div class="row">
+                                                                                <input type="hidden" id="year3" value="{{$Imp}}">
+                                                                                <div class="col-xl-3 col-lg-3 col-md-6">
+                                                                                    <input type="text" class="form-control" value="{{$Imp}}" readonly>
+                                                                                </div>
+
+                                                                                <div class="col-xl-3 col-lg-3 col-md-6">
+                                                                                    <input type="text" class="form-control" placeholder="Enter Amount" name="total_matyear1" id="total_matyear1" value="{{$service_details->total_matyear1 ?? 0}}">
+                                                                                </div>
+
+                                                                                <div class="col-xl-3 col-lg-3 col-md-6">
+                                                                                    <select class="form-control" id="tax_amount1" name="tax_amount1">
+                                                                                        <option value="">Select Tax</option>
+                                                                                        @foreach($taxes as $tax)
+                                                                                        <option value="{{$tax->tax}}" @if ($tax->tax == ($service_details != '' ? $service_details->tax_amount1 : '')) selected="selected" @endif>{{$tax->tax}}</option>
+                                                                                        @endforeach
+                                                                                    </select>
+                                                                                </div>
+                                                                            </div>
+                                                                            @endif
+                                                                            @if($selectedYear == 2 || $selectedYear == 3)
+                                                                            <br>
+
+                                                                            <div class="row">
+                                                                                <div class="col-xl-3 col-lg-3 col-md-6">
+                                                                                    <input type="text" class="form-control" value="{{$Imp_year[0]+1}}-{{$Imp_year[1]+1}}" readonly>
+                                                                                </div>
+
+                                                                                <div class="col-xl-3 col-lg-3 col-md-6">
+                                                                                    <input type="text" class="form-control" placeholder="Enter Amount" name="total_matyear2" id="total_matyear2" value="{{$service_details->total_matyear2 ?? 0}}">
+                                                                                </div>
+
+                                                                                <div class="col-xl-3 col-lg-3 col-md-6">
+                                                                                    <select class="form-control" name="tax_amount2" id="tax_amount2">
+                                                                                        <option value="">Select Tax</option>
+                                                                                        @foreach($taxes as $tax)
+                                                                                        <option value="{{$tax->tax}}" @if ($tax->tax == ($service_details != '' ? $service_details->tax_amount2 : '')) selected="selected" @endif>{{$tax->tax}}</option>
+                                                                                        @endforeach
+                                                                                    </select>
+                                                                                </div>
+                                                                            </div>
+                                                                            @endif
+                                                                            @if($selectedYear == 3)
+                                                                            <br>
+                                                                            <div class="row">
+                                                                                <div class="col-xl-3 col-lg-3 col-md-6">
+                                                                                    <input type="text" class="form-control" value="{{$Imp_year[0]+2}}-{{$Imp_year[1]+2}}" readonly>
+                                                                                </div>
+
+                                                                                <div class="col-xl-3 col-lg-3 col-md-6">
+                                                                                    <input type="text" class="form-control" placeholder="Enter Amount" name="total_matyear3" id="total_matyear3" value="{{$service_details->total_matyear3 ?? 0}}">
+                                                                                </div>
+
+                                                                                <div class="col-xl-3 col-lg-3 col-md-6">
+                                                                                    <select class="form-control" name="tax_amount3" id="tax_amount3">
+                                                                                        <option value="">Select Tax</option>
+                                                                                        @foreach($taxes as $tax)
+                                                                                        <option value="{{$tax->tax}}" @if ($tax->tax == ($service_details != '' ? $service_details->tax_amount3 : '')) selected="selected" @endif>{{$tax->tax}}</option>
+                                                                                        @endforeach
+                                                                                    </select>
+                                                                                </div>
+
+                                                                                @endif
+
+
+
+
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    @endif
+
+                                                    @endif
+                                                    <div class="row mt-2">
+                                                        <div class="col-12">
+                                                            <div class="card-body" style="padding: 0px">
+                                                                <div class="row after-add-more-scheme-service">
+                                                                    <input type="hidden" name="" value="">
+                                                                    @php
+
+                                                                    $service_amount = explode(',', $service_details != '' ? $service_details->service_amount : '0');
+                                                                    $service_description = explode(',', $service_details != '' ? $service_details->service_description : '');
+
+                                                                    $ser_tt = 0;
+                                                                    // $service_amt = 0;
+
+                                                                    @endphp
+                                                                    @foreach ($service_amount as $key => $service_amt)
+                                                                    @php
+                                                                    if(!empty($service_amt)){
+                                                                    $ser_tt += $service_amt;
+                                                                    } else{
+                                                                    $service_amt=0;
+                                                                    $ser_tt+= $service_amt;
+                                                                    }
+                                                                    @endphp
+
+
+
+                                                                    <input type="hidden" name="" value=" {{$ser_tt}}">
+                                                                    <div
+                                                                        class="col-xl-4 col-lg-4 col-md-4 col-sm-12 col-xs-12 mb-0">
+                                                                        <div class="form-group">
+                                                                            <input type="hidden" name="sum" id="sum" value="0">
+                                                                            <input type="text"
+                                                                                class="form-control decimal" id="service_amount" name="service_amount[]"
+                                                                                placeholder="Amount" value="{{ $service_details != '' ? $service_amt : '' }}">
+                                                                        </div>
+                                                                    </div>
+                                                                    <div
+                                                                        class="col-xl-4 col-lg-4 col-md-4 col-sm-12 col-xs-12 mb-0">
+                                                                        <div class="form-group">
+
+                                                                            <input type="text"
+                                                                                class="form-control"
+                                                                                id="service_description"
+                                                                                name="service_description[]"
+                                                                                placeholder="Descripition" value="{{@$service_description[$key]}}">
+                                                                        </div>
+                                                                    </div>
+
+                                                                    @if ($key == 0)
+                                                                    <div
+                                                                        class="col-xl-4 col-lg-4 col-md-4 col-sm-12 col-xs-12 mb-0">
+                                                                        <div class="form-group change">
+                                                                            <a
+                                                                                class="btn btn-alert add-more-button_service">+
+                                                                                Add
+                                                                                More</a>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div class="col-12 my-class-scheme-service">
+                                                                    </div>
+                                                                    @else
+                                                                    <div
+                                                                        class="col-xl-4 col-lg-4 col-md-4 col-sm-12 col-xs-12 mb-0">
+                                                                        <div class="form-group ">
+                                                                            <label
+                                                                                for="">&nbsp;</label><a
+                                                                                class="btn btn-success remove" id="ButtonRemove{{$key}}">-
+                                                                                Remove</a>
+                                                                        </div>
+                                                                    </div>
+                                                                    @endif
+                                                                    @endforeach
+                                                                    {{-- @dd($ser_tt) --}}
+                                                                    <input type="hidden" name="" value=" {{$ser_tt}}" id="serv_amt">
+                                                                </div>
+
+                                                            </div>
+
+
+                                                        </div>
+                                                    </div>
+
+
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-12 mb-0">
+                                        <div class="accordion" id="accordionExample">
+                                            <div class="accordion-item">
+                                                <h6 class="accordion-header" type="button" data-toggle="collapse" data-target="#collapsefour" aria-expanded="true" aria-controls="collapsefour">
+                                                    Rate Reference (File should be 2MB)</h6>
+
+                                                <div id="collapsefour" class="collapse show" aria-labelledby="collapsefour" data-parent="#accordionExample">
+                                                    <div class="card-body">
+                                                        <div class="row">
+                                                            <div class="col-xl-6 col-lg-6">
+                                                                <div class="form-group">
+                                                                    <label for="exampleFormControlInput1">C&M Rate
+                                                                        Reference @if (!empty($service_doc) && !empty($service_doc->cm_rate_ref))
+                                                                        <a class="ml-2" download="{{ $service_doc->cm_rate_ref }}" href="{{ url(asset('services-doc/' . $service_doc->cm_rate_ref)) }}" id="cm_rate_ref-{{$service_doc->id}}"><i class="fa fa-download" title="Download"></i></a>
+                                                                        <a class="btn btn-sm btn-clean btn-icon delete_attachments" data-file-id="{{$service_doc->id }}" data-file-type="cm_rate_ref" data-download-id="cm_rate_ref-{{$service_doc->id}}" id="acm_rate_ref-{{$service_doc->id}}" href="#"><i class="fas fa-trash text-danger"></i></a>
+                                                                        @endif
+                                                                    </label>
+                                                                    <input type="file" class="form-control pdf_order" name="cm_rate_ref" id="cm_rate_ref" multiple>
+                                                                </div>
+                                                            </div>
+
+                                                            <div class="col-xl-6 col-lg-6">
+                                                                <div class="form-group">
+                                                                    <label for="exampleFormControlInput1">Vendor
+                                                                        Quotation @if (!empty($service_doc) && !empty($service_doc->vendor_quat))
+                                                                        <a class="ml-2" download="{{ $service_doc->vendor_quat }}" href="{{ url(asset('services-doc/' . $service_doc->vendor_quat)) }}" id="vendor_quat-{{$service_doc->id}}"><i class="fa fa-download" title="Download"></i></a>
+                                                                        <a class="btn btn-sm btn-clean btn-icon delete_attachments" data-file-id="{{$service_doc->id }}" data-file-type="vendor_quat" data-download-id="vendor_quat-{{$service_doc->id}}" id="avendor_quat-{{$service_doc->id}}" href="#"><i class="fas fa-trash text-danger"></i></a>
+
+                                                                        @endif
+                                                                    </label>
+                                                                    <input type="file" class="form-control pdf_order" name="vendor_quat" id="vendor_quat" multiple>
+                                                                </div>
+                                                            </div>
+
+                                                            <div class="col-xl-6 col-lg-6">
+                                                                <div class="form-group">
+                                                                    <label for="exampleFormControlInput1">Last Purchase
+                                                                        Price @if (!empty($service_doc) && !empty($service_doc->last_purchase_price))
+                                                                        <a class="ml-2" download="{{ $service_doc->last_purchase_price }}" href="{{ url(asset('services-doc/' . $service_doc->last_purchase_price)) }}" id="last_purchase_price-{{$service_doc->id}}"><i class="fa fa-download" title="Download"></i></a>
+                                                                        <a class="btn btn-sm btn-clean btn-icon delete_attachments" data-file-id="{{$service_doc->id }}" data-file-type="last_purchase_price" data-download-id="last_purchase_price-{{$service_doc->id}}" id="alast_purchase_price-{{$service_doc->id}}" href="#"><i class="fas fa-trash text-danger"></i></a>
+
+                                                                        @endif
+                                                                    </label>
+                                                                    <input type="file" class="form-control pdf_order" name="last_purchase_price" id="last multiple_purchase_price">
+                                                                </div>
+                                                            </div>
+
+                                                            <div class="col-xl-6 col-lg-6">
+                                                                <div class="form-group">
+                                                                    <label for="exampleFormControlInput1">User
+                                                                        Estimation @if (!empty($service_doc) && !empty($service_doc->user_estimation))
+                                                                        <a class="ml-2" download="{{ $service_doc->user_estimation }}" href="{{ url(asset('services-doc/' . $service_doc->user_estimation)) }}" id="user_estimation-{{$service_doc->id}}"><i class="fa fa-download" title="Download"></i></a>
+                                                                        <a class="btn btn-sm btn-clean btn-icon delete_attachments" data-file-id="{{$service_doc->id }}" data-file-type="user_estimation" data-download-id="user_estimation-{{$service_doc->id}}" id="auser_estimation-{{$service_doc->id}}" href="#"><i class="fas fa-trash text-danger"></i></a>
+
+                                                                        @endif </label>
+                                                                    <input type="file" class="form-control pdf_order" name="user_estimation" id="user_est multipleimation">
+                                                                </div>
+                                                            </div>
+
+                                                            <div class="col-xl-6 col-lg-6">
+                                                                <div class="form-group">
+                                                                    <label for="exampleFormControlInput1">Previous WO/RC (if any) @if (!empty($service_doc) && !empty($service_doc->previous_wo_rc))
+                                                                        <a class="ml-2" download="{{ $service_doc->previous_wo_rc }}" href="{{ url(asset('services-doc/' . $service_doc->previous_wo_rc)) }}" id="previous_wo_rc-{{$service_doc->id}}"><i class="fa fa-download" title="Download"></i></a>
+                                                                        <a class="btn btn-sm btn-clean btn-icon delete_attachments" data-file-id="{{$service_doc->id }}" data-file-type="previous_wo_rc" data-download-id="previous_wo_rc-{{$service_doc->id}}" id="aprevious_wo_rc-{{$service_doc->id}}" href="#"><i class="fas fa-trash text-danger"></i></a>
+
+                                                                        @endif </label>
+                                                                    <input type="file" class="form-control pdf_order" name="previous_wo_rc" id="previous_ multiplewo_rc">
+                                                                </div>
+                                                            </div>
+
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="row">
+                                            {{-- @dd($service_details) --}}
+
+                                            <div class="col-xl-6 col-lg-6 col-md-6 mt-2">
+                                                <label>Mode of Award</label>
+                                                <select class="form-control" id="mode_award" name="mode_of_award_of_service">
+                                                    <option value="">Select Mode of Award</option>
+                                                    <!-- <option value="Inhouse (FO)"
+                                                {{ ($service_details != '' ? $service_details->mode_of_award_of_service : '') == 'Inhouse (FO)' ? 'selected' : '' }}>
+                                                Inhouse (FO)</option> -->
+                                                    <option value="Inhouse (Tender)" {{( $service_details !='' ?
+                                                $service_details->mode_of_award_of_service : '' ) =='Inhouse (Tender)' ? 'selected' : '' }}>Inhouse (Tender)</option>
+                                                    <option value="Single Vendor"
+                                                        {{ ($service_details != '' ? $service_details->mode_of_award_of_service : '') == 'Single Vendor' ? 'selected' : '' }}>
+                                                        Single Vendor</option>
+                                                    <option value="Turnkey" {{ ($service_details != '' ? $service_details->mode_of_award_of_service : '') == 'Turnkey' ? 'selected' : '' }}>
+                                                        Turnkey</option>
+                                                    <option
+                                                        value="Order/RC extension" {{ ($service_details != '' ? $service_details->mode_of_award_of_service : '') == 'Order/RC extension' ? 'selected' : '' }}>
+                                                        Order/RC extension</option>
+                                                    <option
+                                                        value="Others" {{ ($service_details != '' ? $service_details->mode_of_award_of_service : '') == 'Others' ? 'selected' : '' }}>
+                                                        Others</option>
+                                                </select>
+                                                <div class="common-error form-text budget_type_error"></div>
+                                            </div>
+
+                                            <div class="col-xl-6 col-lg-6 col-md-6 mt-2">
+                                                @if($nv->budgetary_provision=="Approved")
+                                                <label>Budget Available</label>
+                                                @endif
+
+                                                <br>
+                                                @if($nv->id == 1 && $nv->department_id == $departments[0]->id )
+                                                @for($i = 0; $i <1; $i++)
+
+
+
+                                                    @if($nv->budgetary_provision=="Approved")
+                                                    <input type="text" readonly class="form-control" placeholder="Budget Available" value="{{ number_format($avlbgt) ?? 0 }}">
+                                                    <input type="hidden" name="budget_avl" id="budget_available" value="{{ $avlbgt ?? 0 }}">
+                                                    @else
+                                                    <input type="hidden" readonly class="form-control" placeholder="Budget Available" name="budget_avl" id="budget_available" id="budget_available" value="0">
+                                                    @endif
+
+                                                    @endfor
+                                                    @else
+
+
+                                                    @php
+                                                    $budgetValue = isset($avlbgt) ? (is_array($avlbgt) ? '0' : $avlbgt) : '0';
+                                                    @endphp
+
+                                                    @if(is_array($avlbgt))
+                                                    @for($i=0; $i<1; $i++)
+                                                        @if($nv->budgetary_provision=="Approved")
+                                                        <input type="text" readonly class="form-control" placeholder="Budget Available" value="{{ number_format($avlbgt[$i]) }}">
+                                                        <input type="hidden" name="budget_avl" id="budget_available" value="{{ $avlbgt[$i] }}">
+
+                                                        @else
+                                                        <input type="hidden" readonly class="form-control" placeholder="Budget Available" name="budget_avl" id="budget_available" id="budget_available" value="0">
+                                                        @endif
+                                                        @endfor
+                                                        @else
+                                                        @if($nv->budgetary_provision=="Approved")
+                                                        <input type="text" readonly class="form-control" placeholder="Budget Available" value="{{ number_format($budgetValue) }}">
+                                                        <input type="hidden" name="budget_avl" id="budget_available" value="{{ $budgetValue }}">
+                                                        @else
+                                                        <input type="hidden" readonly class="form-control" placeholder="Budget Available" name="budget_avl" id="budget_available" id="budget_available" value="0">
+                                                        @endif
+                                                        @endif
+
+
+
+                                                        @endif
+                                            </div>
+
+                                        </div>
+
+                                        <div class="form-group row mt-2 p-2">
+                                            <div class="col-lg-4 mt-2">
+                                                <label>Estimated Amount of Services</label>
+                                                <input type="text" class="form-control decimal" id="estimate_amount_of_service"
+                                                    name="estimate_amount_of_service"
+                                                    value="{{ $service_details != '' ? $service_details->estimate_amount_of_service : '' }}"
+                                                    placeholder="(Labour+Transport) (In Rs.)">
+                                                <div class="common-error form-text company_name_error"></div>
+                                            </div>
+                                            <div class="col-lg-2 mt-2">
+                                                <label>Tax (In %) </label>
+                                                <select class="form-control" id="tax1" name="tax1">
+                                                    <option value="">Select Tax</option>
+                                                    @foreach($taxes as $tax)
+                                                    <option value="{{$tax->tax}}" @if ($tax->tax == ($service_details != '' ? $service_details->tax1 : '')) selected="selected" @endif>{{$tax->tax}}</option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+
+
+
+                                            <div class="col-xl-4 col-lg-4 col-md-4 mt-2">
+                                                <label>Estimated amount of services Civil</label>
+                                                <input type="text" class="form-control decimal"
+                                                    id="estimate_amount_of_service_civil" placeholder="Enter In Rs."
+                                                    name="estimate_amount_of_service_civil"
+                                                    value="{{ $service_details != '' ? $service_details->estimate_amount_of_service_civil : '' }}">
+                                                <div class="common-error form-text budget_type_error"></div>
+                                            </div>
+
+                                            <div class="col-lg-2 mt-3">
+                                                <label>Tax (In %) </label>
+                                                <select class="form-control" id="tax2" name="tax2">
+                                                    <option value="">Select Tax</option>
+                                                    @foreach($taxes as $tax)
+                                                    <option value="{{$tax->tax}}" @if ($tax->tax == ($service_details != '' ? $service_details->tax2 : '')) selected="selected" @endif>{{$tax->tax}}</option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+
+                                            <div class="col-xl-4 col-lg-4 col-md-4 mt-3">
+                                                <label>Estimated amount of RR Charges</label>
+                                                <input type="text" class="form-control decimal" id="estimate_amount_of_rr_chnage"
+                                                    placeholder="Enter In Rs." name="estimate_amount_of_rr_chnage"
+                                                    value="{{ $service_details != '' ? $service_details->estimate_amount_of_rr_chnage : '' }}">
+                                                <div class="common-error form-text budget_prov_error"></div>
+                                            </div>
+
+                                            <div class="col-lg-2 mt-3">
+                                                <label>Tax (In %) </label>
+                                                <select class="form-control" id="tax3" name="tax3">
+                                                    <option value="">Select Tax</option>
+                                                    @foreach($taxes as $tax)
+                                                    <option value="{{$tax->tax}}" @if ($tax->tax == ($service_details != '' ? $service_details->tax3 : '')) selected="selected" @endif>{{$tax->tax}}</option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+
+                                            <div class="col-lg-4 mt-3">
+                                                <label>Estimated amount - Other</label>
+                                                <input type="text" class="form-control decimal" id="estimate_amount_other"
+                                                    name="estimate_amount_other" placeholder="Enter In Rs."
+                                                    value="{{ $service_details != '' ? $service_details->estimate_amount_other : '' }}">
+                                                <div class="common-error form-text budget_prov_error"></div>
+                                            </div>
+
+                                            <div class="col-lg-2 mt-3">
+                                                <label>Tax (In %) </label>
+                                                <select class="form-control" id="tax4" name="tax4">
+                                                    <option value="">Select Tax</option>
+                                                    @foreach($taxes as $tax)
+                                                    <option value="{{$tax->tax}}" @if ($tax->tax == ($service_details != '' ? $service_details->tax4 : '')) selected="selected" @endif>{{$tax->tax}}</option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+
+                                            <div class="col-xl-6 col-lg-6 col-md-6 mt-3">
+                                                <label>Cost Calculation for services (File should be 2MB) @if (!empty($service_doc) && !empty($service_doc->cost_calculation_for_service))
+                                                    <a class="ml-2"
+                                                        download="{{ $service_doc->cost_calculation_for_service }}"
+                                                        href="{{ url(asset('services-doc/' . $service_doc->cost_calculation_for_service)) }}" id="cost_calculation_for_service-{{$service_doc->id}}"><i
+                                                            class="fa fa-download" title="Download"></i></a>
+                                                    <a class="btn btn-sm btn-clean btn-icon delete_attachments" data-file-id="{{$service_doc->id }}" data-file-type="cost_calculation_for_service" data-download-id="cost_calculation_for_service-{{$service_doc->id}}" id="acost_calculation_for_service-{{$service_doc->id}}" href="#"><i class="fas fa-trash text-danger"></i></a>
+
+                                                    @endif
+                                                </label>
+                                                <input type="file" class="form-control pdf_order" id="cost_calculation_for_service"
+                                                    multiple name="cost_calculation_for_service" accept="" multiple>
+                                                <div class="common-error form-text budget_type_error"></div>
+                                            </div>
+                                            {{-- <div class="col-xl-6 col-lg-6 col-md-6 mt-3">
+                                            <label>Total </label>
+                                            <input type="text" class="form-control" id="total_buget"
+                                                name="total_buget" placeholder=" In Rs. "
+                                                
+                                                value="{{$service_details != '' ? $service_details->total_buget : ''}}" readonly>
+                                            <div class="common-error form-number budget_type_error"></div>
+                                        </div>
+                                        @if($nv->budgetary_provision=="Approved")
+                                        <div class="col-xl-6 col-lg-6 col-md-6 mt-1">
+                                            <label>Approved Budget</label>
+                                            <i class="fas fa-sync-alt text-info" id="refreshButton"></i>
+                                            <input type="text" class="form-control decimal approved_budget" id="approved_budget"
+                                                name="approved_budget"
+                                                value="{{ $service_details != '' ? $service_details->approved_budget : '' }}"
+                                                placeholder="Approved Budget (In Rs.)">
+                                            <span style="font-size:15px;color:red;" class="approved_budget_error"></span>
+
+                                        </div>
+                                        <div class="col-xl-6 col-lg-6 col-md-6 mt-1">
+                                            <label>Additional Budget</label>
+                                            <input type="text" class="form-control decimal add_budget" id="add_budget"
+                                                name="add_budget" readonly
+                                                value="{{ $service_details != '' ? $service_details->add_budget : '' }}"
+                                                placeholder="Additional Budget (In Rs.)">
+                                            <span style="font-size:15px;color:red;" class="add_budget_error"></span>
+
+                                        </div>
+                                        @endif --}}
+                                    </div>
+                                    <div class="col-12 mb-0">
+                                        <div class="form-group">
+                                            <label for="exampleFormControlInput1">Cost Reduction plan/Future phasing
+                                                out
+                                                plan (if applicable) (Max 1000
+                                                Characters)</label>
+
+                                            <textarea name="cause_analysis" id="cause_analysis" value="{{ $service_details != '' ? $service_details->cause_analysis : '' }}" class="form-control auto-resize-textarea" placeholder="Cost Reduction plan/Future phasing out plan(if applicable) ">{{ $service_details != '' ? $service_details->cause_analysis : '' }}</textarea>
+                                            <p id="cause_analysis_count" class="text-muted"></p>
+                                            <div class="common-error form-text cause_analysis_error"></div>
+                                        </div>
+                                    </div>
+                                    <div class="col-xl-6 col-lg-6 col-md-6 col-sm-12 col-xs-12 mb-0">
+                                        <div class="form-group">
+                                            <label for="exampleFormControlInput1" title="Material Trail Details and Schudule of Pilot feedback Submission">Past Practice Followed (If Any)(Max 1000 Characters) @if (!empty($service_doc) && !empty($service_doc->past_practice))
+                                                <a class="ml-2" download="{{ $service_doc->past_practice }}" href="{{ url(asset('services-doc/' . $service_doc->past_practice)) }}" id="past_practice-{{$service_doc->id}}"><i class="fa fa-download" title="Download"></i></a>
+                                                <a class="btn btn-sm btn-clean btn-icon delete_attachments" data-file-id="{{$service_doc->id }}" data-file-type="past_practice" data-download-id="past_practice-{{$service_doc->id}}" id="apast_practice-{{$service_doc->id}}" href="#"><i class="fas fa-trash text-danger"></i></a>
+
+                                                @endif
+                                                <br>(File should be 2MB)</label>
+                                            <input type="file" class="form-control pdf_order" name="past_practice" id="past_pract multipleice" placeholder="New Product">
+
+                                        </div>
+                                    </div>
+
+                                    <div class="col-12 mb-0">
+                                        <textarea name="past_practice_text" id="past_practice_text" value="{{ $service_details != '' ? $service_details->past_practice_text : '' }}" class="form-control auto-resize-textarea" placeholder="Past Practice Followed (If Any)(Max 1000 Characters)">{{ $service_details != '' ? $service_details->past_practice_text : '' }}</textarea>
+                                        <p id="past_practice_text_count" class="text-muted"></p>
+                                        <div class="common-error form-text past_practice_text_error"></div>
+
+                                    </div><br>
+                                    <div class="col-xl-6 col-lg-6 col-md-6 col-sm-12 col-xs-12 mb-0">
+                                        <div class="form-group">
+                                            <label for="exampleFormControlInput1" title="Material Trail Details and Schudule of Pilot feedback Submission">Special Remarks /
+                                                Any Specific Recommendation (Max 500 Characters) @if (!empty($service_doc) && !empty($service_doc->special_attch))
+                                                <a class="ml-2" download="{{ $service_doc->special_attch }}" href="{{ url(asset('services-doc/' . $service_doc->special_attch)) }}" id="special_attch-{{$service_doc->id}}"><i class="fa fa-download" title="Download"></i></a>
+                                                <a class="btn btn-sm btn-clean btn-icon delete_attachments" data-file-id="{{$service_doc->id }}" data-file-type="special_attch" data-download-id="special_attch-{{$service_doc->id}}" id="aspecial_attch-{{$service_doc->id}}" href="#"><i class="fas fa-trash text-danger"></i></a>
+
+                                                @endif
+                                                <br>(File should be 2MB) </label>
+                                            <input type="file" class="form-control pdf_order" name="special_attch" id="special_at multipletch" placeholder="New Product">
+
+                                        </div>
+                                    </div>
+                                    <div class="col-12 mb-0">
+                                        <div class="form-group">
+                                            <!-- <label for="exampleFormControlInput1">Special Remarks / 
+                                        Any Specific Recommendation (Max 500 Characters)</label> -->
+
+
+                                            <textarea name="special_remarks" id="special_remarks" value="{{ $service_details != '' ? $service_details->special_remarks : '' }}" class="form-control auto-resize-textarea" placeholder="Special Remarks / Any Specific Recommendation (Max 500 Characters)">{{ $service_details != '' ? $service_details->special_remarks : '' }}</textarea>
+                                            <p id="special_remarks_count" class="text-muted"></p>
+                                            <div class="common-error form-text special_remarks_error"></div>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-12 mb-2">
+
+
+                                        <div class="accordion" id="accordionExample">
+                                            <div class="accordion-item">
+                                                <h6 class="accordion-header" type="button" data-toggle="collapse"
+                                                    data-target="#collapseTwo" aria-expanded="true"
+                                                    aria-controls="collapseTwo">
+                                                    Attachments (File should be 2MB)</h6>
+
+                                                <div id="collapseTwo" class="collapse show" aria-labelledby="collapseTwo"
+                                                    data-parent="#accordionExample">
+                                                    <div class="card-body">
+                                                        <div class="row">
+                                                            <div class="col-xl-6 col-lg-6 col-md-6 mt-3">
+                                                                <label for="atachment">1. Copy of previous work
+                                                                    order/purchase
+                                                                    order @if (!empty($service_doc) && !empty($service_doc->copy_of_previous_work))
+                                                                    <a class="ml-2"
+                                                                        download="{{ $service_doc->copy_of_previous_work }}"
+                                                                        href="{{ url(asset('services-doc/' . $service_doc->copy_of_previous_work)) }}" id="copy_of_previous_work-{{$service_doc->id}}"><i
+                                                                            class="fa fa-download"
+                                                                            title="Download"></i></a>
+                                                                    <a class="btn btn-sm btn-clean btn-icon delete_attachments" data-file-id="{{$service_doc->id }}" data-file-type="copy_of_previous_work" data-download-id="copy_of_previous_work-{{$service_doc->id}}" id="acopy_of_previous_work-{{$service_doc->id}}" href="#"><i class="fas fa-trash text-danger"></i></a>
+
+                                                                    @endif
+                                                                </label>
+                                                                <input type="file" class="form-control pdf_order"
+                                                                    multiple name="copy_of_previous_work"
+                                                                    id="copy_of_previous_work">
+                                                            </div>
+
+                                                            <div class="col-xl-6 col-lg-6 col-md-6 mt-3">
+                                                                <label for="atachment">2. Copy of DERC/Other stakeholder
+                                                                    approvals @if (!empty($service_doc) && !empty($service_doc->copy_of_derc_other))
+                                                                    <a class="ml-2"
+                                                                        download="{{ $service_doc->copy_of_derc_other }}"
+                                                                        href="{{ url(asset('services-doc/' . $service_doc->copy_of_derc_other)) }}" id="copy_of_derc_other-{{$service_doc->id}}"><i
+                                                                            class="fa fa-download"
+                                                                            title="Download"></i></a>
+                                                                    <a class="btn btn-sm btn-clean btn-icon delete_attachments" data-file-id="{{$service_doc->id }}" data-file-type="copy_of_derc_other" data-download-id="copy_of_derc_other-{{$service_doc->id}}" id="acopy_of_derc_other-{{$service_doc->id}}" href="#"><i class="fas fa-trash text-danger"></i></a>
+
+                                                                    @endif
+                                                                </label>
+                                                                <input type="file" class="form-control pdf_order"
+                                                                    multiple id="copy_of_derc_other" name="copy_of_derc_other"
+                                                                    placeholder="">
+                                                            </div>
+
+                                                            <div class="col-xl-6 col-lg-6 col-md-6 mt-3">
+                                                                <label for="atachment">3. Consumption Details Last 3 years
+                                                                    @if (!empty($service_doc) && !empty($service_doc->consuption_details))
+                                                                    <a class="ml-2"
+                                                                        download="{{ $service_doc->consuption_details }}"
+                                                                        href="{{ url(asset('services-doc/' . $service_doc->consuption_details)) }}" id="consuption_details-{{$service_doc->id}}"><i
+                                                                            class="fa fa-download"
+                                                                            title="Download"></i></a>
+                                                                    <a class="btn btn-sm btn-clean btn-icon delete_attachments" data-file-id="{{$service_doc->id }}" data-file-type="consuption_details" data-download-id="consuption_details-{{$service_doc->id}}" id="aconsuption_details-{{$service_doc->id}}" href="#"><i class="fas fa-trash text-danger"></i></a>
+
+                                                                    @endif
+                                                                </label>
+                                                                <input type="file" name="consuption_details"
+                                                                    multiple class="form-control pdf_order" id="consuption_details"
+                                                                    placeholder="Serviced">
+                                                            </div>
+
+                                                            <div class="col-xl-6 col-lg-6 col-md-6 mt-3">
+                                                                <label for="atachment">4. Budget statement for both
+                                                                    OPEX/CAPEX
+                                                                    activities @if (!empty($service_doc) && !empty($service_doc->buget_stmt_for_both))
+                                                                    <a class="ml-2"
+                                                                        download="{{ $service_doc->buget_stmt_for_both }}"
+                                                                        href="{{ url(asset('services-doc/' . $service_doc->buget_stmt_for_both)) }}" id="buget_stmt_for_both-{{$service_doc->id}}"><i
+                                                                            class="fa fa-download"
+                                                                            title="Download"></i></a>
+                                                                    <a class="btn btn-sm btn-clean btn-icon delete_attachments" data-file-id="{{$service_doc->id }}" data-file-type="buget_stmt_for_both" data-download-id="buget_stmt_for_both-{{$service_doc->id}}" id="abuget_stmt_for_both-{{$service_doc->id}}" href="#"><i class="fas fa-trash text-danger"></i></a>
+
+                                                                    @endif
+                                                                </label>
+                                                                <input type="file" name="buget_stmt_for_both"
+                                                                    multiple class="form-control pdf_order" id="buget_stmt_for_both">
+                                                            </div>
+
+                                                            <div class="col-xl-6 col-lg-6 col-md-6 mt-3">
+                                                                <label for="atachment">5. Photographs of product/PoC in
+                                                                    case of new
+                                                                    product trial @if (!empty($service_doc) && !empty($service_doc->photographs_of_product))
+                                                                    <a class="ml-2"
+                                                                        download="{{ $service_doc->photographs_of_product }}"
+                                                                        href="{{ url(asset('services-doc/' . $service_doc->photographs_of_product)) }}" id="photographs_of_product-{{$service_doc->id}}"><i
+                                                                            class="fa fa-download"
+                                                                            title="Download"></i></a>
+                                                                    <a class="btn btn-sm btn-clean btn-icon delete_attachments" data-file-id="{{$service_doc->id }}" data-file-type="photographs_of_product" data-download-id="photographs_of_product-{{$service_doc->id}}" id="aphotographs_of_product-{{$service_doc->id}}" href="#"><i class="fas fa-trash text-danger"></i></a>
+
+                                                                    @endif
+                                                                </label>
+                                                                <input type="file" name="photographs_of_product"
+                                                                    multiple class="form-control pdf_order" id="photographs_of_product"
+                                                                    placeholder="">
+                                                            </div>
+
+                                                            <div class="col-xl-6 col-lg-6 col-md-6 mt-3">
+                                                                <label for="atachment">6. Material procurement - Details of
+                                                                    Material,
+                                                                    Code, Qty, Rate, Amount etc @if (!empty($service_doc) && !empty($service_doc->material_procurement))
+                                                                    <a class="ml-2"
+                                                                        download="{{ $service_doc->material_procurement }}"
+                                                                        href="{{ url(asset('services-doc/' . $service_doc->material_procurement)) }}" id="material_procurement-{{$service_doc->id}}"><i
+                                                                            class="fa fa-download"
+                                                                            title="Download"></i></a>
+                                                                    <a class="btn btn-sm btn-clean btn-icon delete_attachments" data-file-id="{{$service_doc->id }}" data-file-type="material_procurement" data-download-id="material_procurement-{{$service_doc->id}}" id="amaterial_procurement-{{$service_doc->id}}" href="#"><i class="fas fa-trash text-danger"></i></a>
+
+                                                                    @endif
+                                                                </label>
+                                                                <input type="file" class="form-control pdf_order"
+                                                                    multiple name="material_procurement" id="material_procurement"
+                                                                    placeholder="Serviced">
+                                                            </div>
+
+
+
+                                                            <div class="col-xl-6 col-lg-6 col-md-6 mt-3">
+                                                                <label for="atachment">7. Technical Specifications @if (!empty($service_doc) && !empty($service_doc->vendor_quatation))
+                                                                    <a class="ml-2"
+                                                                        download="{{ $service_doc->vendor_quatation }}"
+                                                                        href="{{ url(asset('services-doc/' . $service_doc->vendor_quatation)) }}" id="vendor_quatation-{{$service_doc->id}}"><i
+                                                                            class="fa fa-download"
+                                                                            title="Download"></i></a>
+                                                                    <a class="btn btn-sm btn-clean btn-icon delete_attachments" data-file-id="{{$service_doc->id }}" data-file-type="vendor_quatation" data-download-id="vendor_quatation-{{$service_doc->id}}" id="avendor_quatation-{{$service_doc->id}}" href="#"><i class="fas fa-trash text-danger"></i></a>
+
+                                                                    @endif
+                                                                </label>
+                                                                <input type="file" name="vendor_quatation" class="form-control pdf_order" id="vendor_ multiplequatation" placeholder="">
+                                                            </div>
+                                                            <div class="col-xl-6 col-lg-6 col-md-6 mt-3">
+                                                                <label for="exampleFormControlInput1">8. Vendor
+                                                                    Quatation @if (!empty($service_doc) && !empty($service_doc->vend_quatation))
+                                                                    <a class="ml-2" download="{{ $service_doc->vend_quatation }}" href="{{ url(asset('services-doc/' . $service_doc->vend_quatation)) }}" id="vend_quatation-{{$service_doc->id}}"><i class="fa fa-download" title="Download"></i></a>
+                                                                    <a class="btn btn-sm btn-clean btn-icon delete_attachments" data-file-id="{{$service_doc->id }}" data-file-type="vend_quatation" data-download-id="vend_quatation-{{$service_doc->id}}" id="avend_quatation-{{$service_doc->id}}" href="#"><i class="fas fa-trash text-danger"></i></a>
+
+                                                                    @endif
+                                                                </label>
+                                                                <input type="file" class="form-control pdf_order" name="vend_quatation" id="vend_quat multipleation">
+                                                            </div>
+
+                                                            <div class="col-xl-6 col-lg-6 col-md-6 mt-3">
+                                                                <label for="atachment">9. Others
+                                                                    @if (!empty($service_doc) && is_object($service_doc) && !empty($service_doc->others))
+                                                                    <a class="ml-2 download-all" id="others-{{$service_doc->id}}" href="#">
+                                                                        <i class="fa fa-download" title="Download All"></i> Download All
+                                                                    </a>
+                                                                    <a class="btn btn-sm btn-clean btn-icon delete_attachments" data-file-id="{{$service_doc->id }}" data-file-type="others" data-download-id="others-{{$service_doc->id}}" id="aothers-{{$service_doc->id}}" href="#"><i class="fas fa-trash text-danger"></i></a>
+
+                                                                </label>
+                                                                <input type="hidden" id="others_data" value="{{ $service_doc->others }}">
+                                                                @endif
+                                                                </label>
+                                                                <input type="file" class="form-control pdf_order" id="others" name="others[]" multipl multiplee>
+                                                            </div>
+
+
+
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-xl-6 col-lg-6 col-md-6 mt-3">
+                                            <label>Total </label>
+                                            <input type="number" class="form-control" id="total_buget"
+                                                name="total_buget" placeholder=" In Rs. "
+
+                                                value="{{$service_details != '' ? $service_details->total_buget : ''}}" readonly>
+                                            <div class="common-error form-number budget_type_error"></div>
+                                        </div>
+                                        <div class="row">
+                                            @if($nv->budgetary_provision=="Approved")
+                                            <div class="col-xl-6 col-lg-6 col-md-6 mt-1">
+                                                <label>Approved Budget</label>
+                                                <i class="fas fa-sync-alt text-info" id="refreshButton"></i>
+                                                <input type="text" class="form-control decimal approved_budget" id="approved_budget"
+                                                    name="approved_budget"
+                                                    value="{{ $service_details != '' ? $service_details->approved_budget : '' }}"
+                                                    placeholder="Approved Budget (In Rs.)">
+                                                <span style="font-size:15px;color:red;" class="approved_budget_error"></span>
+
+                                            </div>
+                                            <div class="col-xl-6 col-lg-6 col-md-6 mt-1">
+                                                <label>Additional Budget</label>
+                                                <input type="text" class="form-control decimal add_budget" id="add_budget"
+                                                    name="add_budget" readonly
+                                                    value="{{ $service_details != '' ? $service_details->add_budget : '' }}"
+                                                    placeholder="Additional Budget (In Rs.)">
+                                                <span style="font-size:15px;color:red;" class="add_budget_error"></span>
+
+                                            </div>
+                                            @endif
+                                        </div> <br>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <!-- <div class="modal fade" id="previewModal" tabindex="-1" role="dialog"
+                                aria-labelledby="previewModalLabel" aria-hidden="true">
+                                <div class="modal-dialog" role="document">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title" id="previewModalLabel">Preview</h5>
+                                            <button type="button" class="close" data-dismiss="modal"
+                                                aria-label="Close">
+                                                <span aria-hidden="true">&times;</span>
+                                            </button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <div id="preview-container">
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary"
+                                                data-dismiss="modal">Close</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div> -->
+                        @php
+                        $segment_id =request()->segment(6);
+
+
+                        if(!empty($segment_id)){
+
+                        $Nvsericestatus = App\Models\Nvsericestatus::where('service_id', $segment_id)->orderBy('id', 'desc')->first();
+                        $Nvserices = App\Models\Nvsericestatus::where('service_id', $segment_id)->orderBy('id', 'desc')->first();
+                        }else{
+                        $Nvsericestatus = App\Models\Nvsericestatus::where('nv_id', $nv->id)->orderBy('id', 'desc')->first();
+                        $Nvserices = App\Models\Nvsericestatus::where('nv_id', $nv->id)->orderBy('id', 'desc')->first();
+                        }
+
+
+                        @endphp
+                        <input type="hidden" name="draft1" id="draft1" value="0">
+                        <input type="hidden" name="draft2" id="draft2" value="1">
+                        <input type="hidden" name="bgt_prov" id="bgt_prov" value="{{$nv->budgetary_provision}}">
+
+
+                        <div class="card">
+                            <div class="card-footer">
+                                <div class="row">
+                                    <div class="col-lg-12 text-center">
+                                        @if( $service_details != '')
+                                        <a href="/admin/nv_service/preview/{{ $service_details != '' ? $service_details->nv_id:'' }}">
+                                            @endif
+                                            <button type="button" class="btn btn-success">Preview</button>
+                                        </a>
+
+                                        @if ($service_details == '')
+                                        <button type="button" class="btn btn-success save_btn" value="save_nv">Save</button>
+                                        <button type="submit" class="btn btn-success submit_btn" value="submit_nv">Submit</button>
+                                        <button type="button" class="btn btn-success delete_btn" value="delete_nv">Delete</button>
+                                        @endif
+                                        <!-- @if($Nvsericestatus != '' && $Nvsericestatus->draft == 0)
+                                            <button type="button" class="btn btn-success save_btn" value="save_nv">Save</button>
+                                            <button type="submit" class="btn btn-success submit_btn" value="submit_nv">Submit</button>
+                                            @endif -->
+                                        @php
+                                        $anyStageTwo = false;
+                                        if(!empty($service_details->id)){
+                                        $nv_stage = DB::table('capex_workflows_status')->where('service_id', $service_details->id)->get();
+
+                                        if ($nv_stage->count()) {
+                                        foreach ($nv_stage as $stage) {
+                                        if ($stage->nv_stage_status == 2) {
+                                        $anyStageTwo = true;
+                                        }
+                                        }
+                                        }
+                                        }
+                                        @endphp
+                                        @if($Nvsericestatus != '')
+                                        @if($Nvsericestatus->draft == 0)
+                                        <button type="button" class="btn btn-success save_btn" value="save_nv">Save</button>
+                                        <button type="submit" class="btn btn-success submit_btn" value="submit_nv">Submit</button>
+                                        <button type="button" class="btn btn-success delete_btn" value="delete_nv">Delete</button>
+                                        @elseif (($Nvsericestatus->draft == 1) &&
+                                        ($Nvsericestatus->rv1_status == 2||
+                                        $Nvsericestatus->rv2_status == 2||
+                                        $Nvsericestatus->rv3_status == 2||
+                                        $Nvsericestatus->rv4_status == 2||
+                                        $Nvsericestatus->hod_status == 2||
+                                        $Nvsericestatus->groupcio_status == 2||
+                                        $anyStageTwo) &&
+                                        ($Nvsericestatus->previous_draft_status == 0))
+                                        <button type="button" class="btn btn-success save_btn" value="save_nv">Save</button>
+                                        {{-- <button type="submit" class="btn btn-success submit_btn" value="submit_nv">Submit</button> --}}
+                                        {{-- <button type="button" class="btn btn-success delete_btn" value="delete_nv">Delete</button>  --}}
+                                        @endif
+                                        @endif
+                                        <button type="reset" class="btn btn-secondary"
+                                            onclick="history.back();">Back</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <!-- /.card -->
+
+            </div>
+        </div>
+    </div>
+
+</section>
+@endsection
+@push('script')
+<script src="{{ asset('theme/plugins/datatables/jquery.dataTables.min.js') }}"></script>
+<script src="{{ asset('theme/plugins/datatables-bs4/js/dataTables.bootstrap4.min.js') }}"></script>
+<script src="{{ asset('theme/plugins/datatables-responsive/js/dataTables.responsive.min.js') }}"></script>
+<script>
+    //Rate calculation for ServiceBOQ
+    function sumSolar() {
+        var sce = $('#ser_rate').val();
+        var sca = $('#ser_quantity').val();
+        var sum = (1 * sce) * (1 * sca);
+        $('#ser_total_amount').val(sum);
+    }
+
+    function autofetchServiceCode() {
+        var token = "{{ csrf_token() }}";
+        var service_code = $("#service_code_0").val();
+        if (service_code.length >= 6) {
+            $.ajax({
+                url: "{{ route('capex.auto.fetch.servicedata') }}",
+                type: 'post',
+                dataType: "json",
+                data: {
+                    '_token': token,
+                    'key': service_code,
+                },
+                success: function(data) {
+                    //response(data);
+                    $('#ser_des_0').val(data.service_short_text);
+                    $('#ser_uom_0').val(data.bun);
+                    $('#ser_rate').val(data.rate_ser);
+                }
+            });
+
+        }
+    };
+</script>
+<script>
+    $(document).ready(function() {
+        $('.download-all').on('click', function(e) {
+            e.preventDefault();
+
+            var fileData = $(this).data('files');
+            if (!fileData) return;
+
+            var files = fileData.split(',');
+            downloadFiles(files);
+        });
+
+        function downloadFiles(files) {
+            var link = document.createElement('a');
+            link.style.display = 'none';
+
+            document.body.appendChild(link);
+
+            for (var i = 0; i < files.length; i++) {
+                link.setAttribute('href', '{{ url('
+                    services - doc / ') }}/' + files[i]);
+                link.setAttribute('download', files[i]);
+                link.click();
+            }
+
+            document.body.removeChild(link);
+        }
+    });
+</script>
+<script>
+    $(document).ready(function() {
+        $('#add').click(function() {
+            $('#details').toggle();
+        });
+
+    });
+
+    let previousValues = {};
+
+    function sumSolarCap_2() {
+        var amount1 = parseFloat($('#estimate_amount_of_service').val());
+        var taxPercentage1 = parseFloat($('#tax1').val());
+        if (!isNaN(amount1) && !isNaN(taxPercentage1)) {
+            var taxAmount1 = ((amount1 * taxPercentage1) / 100) || 0;
+        }
+        var amount2 = parseFloat($('#estimate_amount_of_service_civil').val());
+        var taxPercentage2 = parseFloat($('#tax2').val());
+        if (!isNaN(amount2) && !isNaN(taxPercentage2)) {
+            var taxAmount2 = ((amount2 * taxPercentage2) / 100) || 0;
+        }
+
+        var amount3 = parseFloat($('#estimate_amount_of_rr_chnage').val());
+        var taxPercentage3 = parseFloat($('#tax3').val());
+        if (!isNaN(amount3) && !isNaN(taxPercentage3)) {
+            var taxAmount3 = ((amount3 * taxPercentage3) / 100) || 0;
+        }
+        var amount4 = parseFloat($('#estimate_amount_other').val());
+        var taxPercentage4 = parseFloat($('#tax4').val());
+        if (!isNaN(amount4) && !isNaN(taxPercentage4)) {
+            var taxAmount4 = ((amount4 * taxPercentage4) / 100) || 0;
+        }
+
+        var implementsYears = parseInt($("#exampleFormControlSelect").val()) || 0;
+        var bgt_prov = $('#bgt_prov').val();
+
+        if (bgt_prov == "Additional" || implementsYears == 0) {
+            var amount5 = parseFloat($('#total_ser_amo').val());
+            var taxPercentage5 = parseFloat($('#tax5').val());
+            if (!isNaN(amount5) && !isNaN(taxPercentage5)) {
+                var taxAmount5 = ((amount5 * taxPercentage5) / 100) || 0;
+            }
+            var service_budget = Number(document.getElementById('total_ser_amo').value) || 0;
+            var total_matyear1 = 0;
+            var total_matyear2 = 0;
+            var total_matyear3 = 0;
+        } else {
+
+            var tax_amount1 = parseFloat($('#tax_amount1').val()) || 0;
+            var tax_amount2 = parseFloat($('#tax_amount2').val()) || 0;
+            var tax_amount3 = parseFloat($('#tax_amount3').val()) || 0;
+            if (implementsYears == 1) {
+                // var total_matyear1 = Number(document.getElementById('total_matyear1').value) || 0;
+                var total_matyear1 = parseFloat($('#total_matyear1').val()) || 0;
+                if (!isNaN(total_matyear1) && !isNaN(tax_amount1)) {
+                    var total_matyear1 = total_matyear1 + ((total_matyear1 * tax_amount1) / 100) || 0;
+                } else {
+                    var total_matyear1 = total_matyear1 || 0;
+                }
+                var total_matyear2 = 0;
+                var total_matyear3 = 0;
+                var service_budget = 0;
+                var taxAmount5 = 0;
+            } else if (implementsYears == 2) {
+                // var total_matyear1 = Number(document.getElementById('total_matyear1').value) || 0;
+                var total_matyear1 = parseFloat($('#total_matyear1').val()) || 0;
+                if (!isNaN(total_matyear1) && !isNaN(tax_amount1)) {
+                    var total_matyear1 = total_matyear1 + ((total_matyear1 * tax_amount1) / 100) || 0;
+                } else {
+                    var total_matyear1 = total_matyear1 || 0;
+                }
+                // var total_matyear2 = Number(document.getElementById('total_matyear2').value) || 0;
+                var total_matyear2 = parseFloat($('#total_matyear2').val()) || 0;
+                if (!isNaN(total_matyear2) && !isNaN(tax_amount2)) {
+                    var total_matyear2 = total_matyear2 + ((total_matyear2 * tax_amount2) / 100) || 0;
+                } else {
+                    var total_matyear2 = total_matyear2 || 0;
+                }
+                var total_matyear3 = 0;
+                var service_budget = 0;
+                var taxAmount5 = 0;
+            } else if (implementsYears == 3) {
+                // var total_matyear1 = Number(document.getElementById('total_matyear1').value) || 0;
+                var total_matyear1 = parseFloat($('#total_matyear1').val()) || 0;
+                if (!isNaN(total_matyear1) && !isNaN(tax_amount1)) {
+                    var total_matyear1 = total_matyear1 + ((total_matyear1 * tax_amount1) / 100) || 0;
+                } else {
+                    var total_matyear1 = total_matyear1 || 0;
+                }
+                // var total_matyear2 = Number(document.getElementById('total_matyear2').value) || 0;
+                var total_matyear2 = parseFloat($('#total_matyear2').val()) || 0;
+                if (!isNaN(total_matyear2) && !isNaN(tax_amount2)) {
+                    var total_matyear2 = total_matyear2 + ((total_matyear2 * tax_amount2) / 100) || 0;
+                } else {
+                    var total_matyear2 = total_matyear2 || 0;
+                }
+                // var total_matyear3 = Number(document.getElementById('total_matyear3').value) || 0;
+                var total_matyear3 = parseFloat($('#total_matyear3').val()) || 0;
+                if (!isNaN(total_matyear3) && !isNaN(tax_amount3)) {
+                    var total_matyear3 = total_matyear3 + ((total_matyear3 * tax_amount3) / 100) || 0;
+                } else {
+                    var total_matyear3 = total_matyear3 || 0;
+                }
+                var service_budget = 0;
+                var taxAmount5 = 0;
+            }
+        }
+
+
+        var estimateSerAmoCivil = Number(document.getElementById('estimate_amount_of_service_civil').value) || 0;
+        var estimateAmountOfService = Number(document.getElementById('estimate_amount_of_service').value) || 0;
+        var estimateAmountOfRRCharge = Number(document.getElementById('estimate_amount_of_rr_chnage').value) || 0;
+        var estimateAmountOther = Number(document.getElementById('estimate_amount_other').value) || 0;
+        var totalBudgetNV = Number(document.getElementById('total_buget').value) || 0;
+        let service_amount = 0;
+        document.querySelectorAll('input[name="service_amount[]"]').forEach(function(input) {
+            const value = parseFloat(input.value) || 0;
+            service_amount += value;
+        });
+        var sum = service_amount + service_budget +
+            estimateSerAmoCivil + estimateAmountOfService +
+            estimateAmountOfRRCharge + estimateAmountOther;
+var sumdata = total_matyear3 + total_matyear2 + total_matyear1;
+        if (!isNaN(taxAmount1)) {
+            sum = sum + taxAmount1;
+        }
+        if (!isNaN(taxAmount2)) {
+            sum = sum + taxAmount2;
+        }
+        if (!isNaN(taxAmount3)) {
+            sum = sum + taxAmount3;
+        }
+        if (!isNaN(taxAmount4)) {
+            sum = sum + taxAmount4;
+        }
+        if (!isNaN(taxAmount5)) {
+            sum = sum + taxAmount5;
+        }
+        var totalBudgetNV = document.getElementById('total_buget');
+
+        if (totalBudgetNV.value !== sumdata.toString()) {
+            if (sum % 1 != 0) {
+                totalBudgetNV.value = sumdata.toFixed(2);
+            } else {
+                totalBudgetNV.value = sumdata;
+            }
+        }
+
+        // if (totalBudgetNV.value !== sum.toString()) {
+        //     if (sum % 1 != 0) {
+        //         totalBudgetNV.value = sum.toFixed(2);
+        //     } else {
+        //         totalBudgetNV.value = sum;
+        //     }
+        // }
+    }
+
+    window.addEventListener('change', sumSolarCap_2);
+
+
+    setInterval(function() {
+        var currentValues = {};
+        document.querySelectorAll('input[type="text"]').forEach(function(input) {
+            currentValues[input.id] = input.value;
+        });
+
+        if (JSON.stringify(previousValues) !== JSON.stringify(currentValues)) {
+            previousValues = currentValues;
+            sumSolarCap_2();
+        }
+    }, 100);
+</script>
+<script src="{{ asset('theme/plugins/moment/moment.min.js') }}"></script>
+<script src="{{ asset('admin/js/brand.js') }}"></script>
+<script src="{{ asset('theme/plugins/select2/js/select2.full.min.js') }}"></script>
+<script src="{{ asset('admin/js/nvservices.js') }}"></script>
+<script src="{{ asset('admin/js/nvserviceboq.js') }}"></script>
+<script>
+    $.ajaxSetup({
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        }
+    });
+</script>
+<script>
+    function duplicateColumns() {
+        const selectedYear = parseInt($("#exampleFormControlSelect").val());
+
+        // Retrieve data from the database for the selected year (assuming 'materialData' is the object containing all the data)
+        const materialData = <?php echo json_encode($service_details); ?>;
+
+        // Update the year values dynamically based on the selected year
+        const yearArray = [];
+        for (let i = 1; i <= selectedYear; i++) {
+            yearArray.push(i.toString());
+        }
+
+        // Hide the container if no year is selected or value is not valid
+        if (isNaN(selectedYear) || selectedYear <= 0) {
+            $("#duplicateContainer").hide();
+            return; // Stop further execution
+        }
+
+        // Remove any previously duplicated columns
+        $(".duplicated-column").remove();
+
+        // Check if we have data for the selected year (editing scenario)
+        const selectedYearData = materialData[selectedYear];
+        if (selectedYearData) {
+            // Generate duplicated columns based on existing data
+            const originalColumns = $(".original-columns").children();
+            for (let i = 1; i < selectedYear; i++) {
+                // Clone the original columns
+                const clonedColumns = originalColumns.clone();
+                const dynamicIdFrom = "imp_from" + i;
+                const dynamicIdTo = "imp_to" + i;
+                const dynamicIdFrom1 = "imp_from" + (i + 1);
+                const dynamicIdTo1 = "imp_to" + (i + 1);
+
+                clonedColumns.find("#imp_from").attr("id", dynamicIdFrom);
+                clonedColumns.find("#imp_to").attr("id", dynamicIdTo);
+                // Add a class to identify duplicated columns
+                clonedColumns.addClass("duplicated-column");
+                clonedColumns.find("#" + dynamicIdFrom).on("change", function() {
+                    var selectedDate = new Date($(this).val());
+                    selectedDate.setDate(selectedDate.getDate() + 1);
+                    var minDate = formatDate(selectedDate);
+                    // console.log(minDate);
+                    $("#" + dynamicIdTo).attr('min', minDate);
+                    $("#" + dynamicIdTo).val('');
+                });
+                clonedColumns.find("#" + dynamicIdTo).on("change", function() {
+                    var selectedDate = new Date($(this).val());
+                    selectedDate.setDate(selectedDate.getDate() - 1);
+                    var maxDate = formatDate(selectedDate);
+                    $("#" + dynamicIdFrom).attr('max', maxDate);
+                    var selectedDate = new Date($(this).val());
+                    selectedDate.setDate(selectedDate.getDate() + 1);
+                    var minDate = formatDate(selectedDate);
+                    // console.log(minDate);
+                    $("#" + dynamicIdFrom1).attr('min', minDate);
+                    $("#" + dynamicIdFrom1).val('');
+
+                });
+                // Add a class to identify duplicated columns
+                clonedColumns.addClass("duplicated-column");
+
+                // Append the duplicated columns to the container
+                $("#duplicateContainer").append(clonedColumns);
+            }
+
+            // Populate the duplicated columns with data
+            populateDuplicatedColumns(materialData);
+        } else {
+            // Generate empty duplicated columns for new creation
+            const originalColumns = $(".original-columns").children();
+            for (let i = 1; i < selectedYear; i++) {
+                // Clone the original columns
+                const clonedColumns = originalColumns.clone();
+                const dynamicIdFrom = "imp_from" + i;
+                const dynamicIdTo = "imp_to" + i;
+                const dynamicIdFrom1 = "imp_from" + (i + 1);
+                const dynamicIdTo1 = "imp_to" + (i + 1);
+
+                clonedColumns.find("#imp_from").attr("id", dynamicIdFrom);
+                clonedColumns.find("#imp_to").attr("id", dynamicIdTo);
+                // Add a class to identify duplicated columns
+                clonedColumns.addClass("duplicated-column");
+                clonedColumns.find("#" + dynamicIdFrom).on("change", function() {
+                    var selectedDate = new Date($(this).val());
+                    selectedDate.setDate(selectedDate.getDate() + 1);
+                    var minDate = formatDate(selectedDate);
+                    // console.log(minDate);
+                    $("#" + dynamicIdTo).attr('min', minDate);
+                    $("#" + dynamicIdTo).val('');
+                });
+                clonedColumns.find("#" + dynamicIdTo).on("change", function() {
+                    var selectedDate = new Date($(this).val());
+                    selectedDate.setDate(selectedDate.getDate() - 1);
+                    var maxDate = formatDate(selectedDate);
+                    $("#" + dynamicIdFrom).attr('max', maxDate);
+                    var selectedDate = new Date($(this).val());
+                    selectedDate.setDate(selectedDate.getDate() + 1);
+                    var minDate = formatDate(selectedDate);
+                    // console.log(minDate);
+                    $("#" + dynamicIdFrom1).attr('min', minDate);
+                    $("#" + dynamicIdFrom1).val('');
+                });
+                // Clear the input values in the duplicated columns for new creation
+                clonedColumns.find(".form-control").val('');
+                // Append the duplicated columns to the container
+                $("#duplicateContainer").append(clonedColumns);
+            }
+        }
+
+        // Show the container after duplicating columns
+        $("#duplicateContainer").show();
+    }
+
+    // Call the duplicateColumns function only when the page loads
+    $(document).ready(function() {
+        // This will ensure that the duplicateColumns function is called once on page load
+        // and the duplicated columns are generated based on the initial selected year
+        duplicateColumns();
+    });
+</script>
+<script>
+    var today = new Date();
+    var dd = today.getDate();
+    var mm = today.getMonth() + 1; //January is 0!
+    var yyyy = today.getFullYear();
+    if (dd < 10) {
+        dd = '0' + dd
+    }
+    if (mm < 10) {
+        mm = '0' + mm
+    }
+    today = yyyy + '-' + mm + '-' + dd;
+    document.getElementById("derc_app_date").setAttribute("max", today);
+</script>
+<!-- <script>
+         function setMinimumDates() {
+        $(".after-add-more-third input[name='imp_from[]']").each(function() {
+            $(this).attr("min", new Date().toISOString().split("T")[0]);
+            const impToInput = $(this).parent().parent().next().find("input[name='imp_to[]']");
+            const fromValue = $(this).val();
+            if (fromValue) {
+                impToInput.attr("min", fromValue);
+            } else {
+                impToInput.attr("min", new Date().toISOString().split("T")[0]);
+            }
+        });
+    }
+    $(document).on("change", ".after-add-more-third input[name='imp_from[]']", function() {
+        const fromValue = $(this).val();
+        const impToInput = $(this).parent().parent().next().find("input[name='imp_to[]']");
+        if (fromValue) {
+            impToInput.attr("min", fromValue);
+        } else {
+            impToInput.attr("min", new Date().toISOString().split("T")[0]);
+        }
+    });
+    $(document).on("click", ".add-more-third", function() {
+        setMinimumDates();
+    });
+    setMinimumDates();
+
+    var today = new Date();
+    var dd = today.getDate();
+    var mm = today.getMonth() + 1;January is 0!
+    var yyyy = today.getFullYear();
+    if (dd < 10) {
+        dd = '0' + dd
+    }
+    if (mm < 10) {
+        mm = '0' + mm
+    }
+    today = yyyy + '-' + mm + '-' + dd;
+    document.getElementById("derc_app_date").setAttribute("max", today);
+    </script>
+    <script>
+        function setMinimumDates() {
+        $(".after-add-more-third input[name='imp_from[]']").each(function() {
+            $(this).attr("min", new Date().toISOString().split("T")[0]);
+            const impToInput = $(this).parent().parent().next().find("input[name='imp_to[]']");
+            const fromValue = $(this).val();
+            if (fromValue) {
+                impToInput.attr("min", fromValue);
+            } else {
+                impToInput.attr("min", new Date().toISOString().split("T")[0]);
+            }
+        });
+    }
+    $(document).on("change", ".after-add-more-third input[name='imp_from[]']", function() {
+        const fromValue = $(this).val();
+        const impToInput = $(this).parent().parent().next().find("input[name='imp_to[]']");
+        if (fromValue) {
+            impToInput.attr("min", fromValue);
+        } else {
+            impToInput.attr("min", new Date().toISOString().split("T")[0]);
+        }
+    });
+    $(document).on("click", ".add-more-third", function() {
+        setMinimumDates();
+    });
+    setMinimumDates();
+
+    var today = new Date();
+    var dd = today.getDate();
+    var mm = today.getMonth() + 1;January is 0!
+    var yyyy = today.getFullYear();
+    if (dd < 10) {
+        dd = '0' + dd
+    }
+    if (mm < 10) {
+        mm = '0' + mm
+    }
+    today = yyyy + '-' + mm + '-' + dd;
+    document.getElementById("derc_app_date").setAttribute("max", today);
+    </script> -->
+<script>
+    function validateDate(input) {
+        const dateValue = input.value;
+        const isValidDate = isValidDateFormat(dateValue); // Implement this function
+        if (!isValidDate) {
+            alert('Invalid date format. Please use yyyy-mm-dd.');
+            input.value = ''; // Clear the input field
+        }
+    }
+
+
+    function isValidDateFormat(dateString) {
+        const regex = /^\d{4}-\d{2}-\d{2}$/;
+        return regex.test(dateString);
+    }
+</script>
+
+<script src="https://cdn.ckeditor.com/ckeditor5/39.0.2/classic/ckeditor.js"></script>
+<script>
+    let editor1;
+
+    ClassicEditor
+        .create(document.querySelector('#just_of_proposal'))
+        .then(newEditor => {
+            editor1 = newEditor;
+            const charCount3Element = document.getElementById('charCount3');
+            const validationMessage3Element = document.getElementById('validationMessage3');
+
+            // Initialize character count3
+            updateCharCount3(getPlainTextLength(editor1.getData()));
+
+            // Listen for changes in the editor
+            editor1.model.document.on('change:data', () => {
+                const content = editor1.getData();
+                const contentLength = getPlainTextLength(content);
+
+                updateCharCount3(contentLength);
+
+            });
+
+            function updateCharCount3(length) {
+                charCount3Element.textContent = `${length} / 2500 characters`;
+            }
+        })
+        .catch(error => {
+            console.error(error);
+        });
+
+    let editor2;
+
+    ClassicEditor
+        .create(document.querySelector('#background'))
+        .then(newEditor => {
+            editor2 = newEditor;
+            const charCount1Element = document.getElementById('charCount1');
+            const validationMessage1Element = document.getElementById('validationMessage1');
+
+            // Initialize character count1
+            updateCharCount1(getPlainTextLength(editor2.getData()));
+
+            // Listen for changes in the editor
+            editor2.model.document.on('change:data', () => {
+                const content = editor2.getData();
+                const contentLength = getPlainTextLength(content);
+
+                updateCharCount1(contentLength);
+
+            });
+
+            function updateCharCount1(length) {
+                charCount1Element.textContent = `${length} / 2500 characters`;
+            }
+        })
+        .catch(error => {
+            console.error(error);
+        });
+
+    let editor3;
+
+    ClassicEditor
+        .create(document.querySelector('#broad_just'))
+        .then(newEditor => {
+            editor3 = newEditor;
+
+            const charCount2Element = document.getElementById('charCount2');
+            const validationMessage2Element = document.getElementById('validationMessage2');
+
+            // Initialize character count2
+            updateCharCount2(getPlainTextLength(editor3.getData()));
+
+            // Listen for changes in the editor
+            editor3.model.document.on('change:data', () => {
+                const content = editor3.getData();
+                const contentLength = getPlainTextLength(content);
+
+                updateCharCount2(contentLength);
+
+            });
+
+            function updateCharCount2(length) {
+                charCount2Element.textContent = `${length} / 500 characters`;
+            }
+        })
+        .catch(error => {
+            console.error(error);
+        });
+
+    function getPlainTextLength(htmlContent) {
+        // Strip HTML tags and get plain text length
+        const plainText = htmlContent.replace(/<[^>]*>?/gm, '');
+        return plainText.length;
+    }
+</script>
+
+<script>
+    document.addEventListener('change', function(event) {
+
+        if (event.target && event.target.classList.contains('pdf_order')) {
+            var maxSize = 2 * 1024 * 1024; // 5 MB in bytes
+
+            var file = event.target.files[0];
+
+            if (file) {
+                var fileSize = file.size;
+                var fileType = file.type;
+
+                if (fileSize > maxSize) {
+                    Swal.fire({
+                        icon: 'error',
+
+                        confirmButtonColor: '#3085d6',
+                        confirmButtonText: 'OK',
+                        html: '<p style="color: red;">File size must be less than 2 MB.</p>'
+                    }).then(function() {
+                        event.target.value = ''; // Clear the input
+                    });
+                }
+            }
+        }
+    });
+</script>
+
+
+
+<script type="text/javascript">
+    //     function getCurrentFinancialYear() {
+    //     var today = new Date();
+    //     var currentMonth = today.getMonth();
+    //     currentMonth = currentMonth + 1;
+
+    //     if(currentMonth > 3)
+    //     {
+    //         var fiscalYearStart = new Date(today.getFullYear()-1, 4 - 1, 2); 
+    //         var fiscalYearEnd = new Date(today.getFullYear()+5, 2, 32); 
+    //     }
+    //     else
+    //     {
+    //         var fiscalYearStart = new Date(today.getFullYear()-2, 4 - 1, 2); 
+    //         var fiscalYearEnd = new Date(today.getFullYear()+4, 2, 32); 
+    //     }
+
+    // // console.log(fiscalYearStart);
+    //     if (today < fiscalYearStart) {
+    //         return {
+    //             start: new Date(today.getFullYear() - 1, 3 - 1, 1),
+    //             end: new Date(today.getFullYear() - 1, 2, 31)
+    //         };
+    //     } else if (today > fiscalYearEnd) {
+    //         return {
+    //             start: fiscalYearStart,
+    //             end: new Date(today.getFullYear() + 1, 3, 1)
+    //         };
+    //     } else {
+    //         return {
+    //             start: fiscalYearStart,
+    //             end: fiscalYearEnd
+    //         };
+    //     }
+    // }
+
+    //     var financialYear = getCurrentFinancialYear();
+    //     var April = financialYear.start;
+    //     var March = financialYear.end;
+
+    function getCurrentFinancialYear(fiscalYearString) {
+        // Parse the fiscal year string (e.g., "2024-25")
+        var years = fiscalYearString.split('-');
+        var startYear = parseInt(years[0]);
+        var endYear = parseInt(years[0]) + 3
+        var fiscalYearStart = new Date(startYear, 4 - 1, 2); // April 1st of the start year
+        var fiscalYearEnd = new Date(endYear, 2, 32); // March 31st of the end year
+        return {
+            start: fiscalYearStart,
+            end: fiscalYearEnd
+        }
+    }
+
+    // Replace this with the dynamic value from your backend
+    var fiscalYearString = "{{$nv->fiscal_year}}"; // e.g., "2024-25"
+    var financialYear = getCurrentFinancialYear(fiscalYearString);
+    var April = financialYear.start;
+    var March = financialYear.end;
+
+    function format(date) {
+        return date.toISOString().split('T')[0];
+    }
+    // console.log("Financial Year Start Date:", formatDate(April));
+    // console.log("Financial Year End Date:", formatDate(March));
+
+    var checkin = [];
+    var checkout = [];
+
+    function formatDate(date) {
+        return date.toISOString().split("T")[0];
+    }
+    $(function() {
+
+        $('#amc_proposal_sdate').on('change', function() {
+            var selectedDate = new Date($(this).val());
+            selectedDate.setDate(selectedDate.getDate() + 1);
+            var minDate = formatDate(selectedDate);
+            $('#amc_proposal_edate').attr('min', minDate);
+            $('#amc_proposal_edate').val('');
+        });
+
+
+        $('#amc_proposal_edate').on('change', function() {
+            var selectedDate = new Date($(this).val());
+            selectedDate.setDate(selectedDate.getDate() - 1);
+            var maxDate = formatDate(selectedDate);
+            $('#amc_proposal_sdate').attr('max', maxDate);
+        });
+    });
+
+    function setMinimum() {
+        $("#amc_proposal_sdate").each(function() {
+            $(this).attr("min", format(April));
+            $(this).attr("max", format(March));
+            const impToInput = $(this).parent().parent().next().find("#amc_proposal_sdate");
+            const fromValue = $(this).val();
+            if (fromValue) {
+                impToInput.attr("min", fromValue);
+                impToInput.attr("max", fromValue);
+            } else {
+                impToInput.attr("min", format(April));
+                impToInput.attr("max", format(March));
+            }
+        });
+
+        $("#amc_proposal_edate").each(function() {
+            $(this).attr("min", format(April));
+            $(this).attr("max", format(March));
+            const impToInput = $(this).parent().parent().next().find("#amc_proposal_edate");
+            const fromValue = $(this).val();
+            if (fromValue) {
+                impToInput.attr("min", fromValue);
+                impToInput.attr("max", fromValue);
+            } else {
+                impToInput.attr("min", format(April));
+                impToInput.attr("max", format(March));
+            }
+        });
+    }
+
+    setMinimum();
+
+    $(function() {
+        const dynamicIdFrom = "imp_from" + 1;
+        const dynamicIdTo = "imp_to" + 1;
+        // Set the minimum and maximum date for amc_prop_start_date
+        $(" #imp_from").on('change', function() {
+            var selectedDate = new Date($(this).val());
+            selectedDate.setDate(selectedDate.getDate() + 1);
+            var minDate = formatDate(selectedDate);
+            // console.log(minDate);
+            $(" #imp_to").attr('min', minDate);
+            $(" #imp_to").val('');
+        });
+
+
+
+        // Set the minimum and maximum date for imp_to
+        $(" #imp_to").on('change', function() {
+            var selectedDate = new Date($(this).val());
+            selectedDate.setDate(selectedDate.getDate() - 1);
+            var maxDate = formatDate(selectedDate);
+            $(" #imp_from").attr('max', maxDate);
+            var selectedDate = new Date($(this).val());
+            selectedDate.setDate(selectedDate.getDate() + 1);
+            var minDate = formatDate(selectedDate);
+            // console.log(minDate);
+            $("#" + dynamicIdFrom).attr('min', minDate);
+            $("#" + dynamicIdFrom).val('');
+        });
+
+    });
+
+
+    function setMinimumDates() {
+        $(".after-add-more-third input[name='imp_to[]']").each(function() {
+            $(this).attr("min", format(April));
+            $(this).attr("max", format(March));
+            const impToInput = $(this).parent().parent().next().find("input[name='imp_to[]']");
+            const fromValue = $(this).val();
+            if (fromValue) {
+                impToInput.attr("min", fromValue);
+                impToInput.attr("max", fromValue);
+            } else {
+                impToInput.attr("min", format(April));
+                impToInput.attr("max", format(March));
+            }
+        });
+
+        $(".after-add-more-third input[name='imp_from[]']").each(function() {
+            $(this).attr("min", format(April));
+            $(this).attr("max", format(March));
+            const impToInput = $(this).parent().parent().next().find("input[name='imp_from[]']");
+            const fromValue = $(this).val();
+            if (fromValue) {
+                impToInput.attr("min", fromValue);
+                impToInput.attr("max", fromValue);
+            } else {
+                impToInput.attr("min", format(April));
+                impToInput.attr("max", format(March));
+            }
+        });
+    }
+
+    $(document).on("click", ".add-more-third", function() {
+        setMinimumDates();
+    });
+    setMinimumDates();
+</script>
+<script>
+    function show_data(b) {
+        var id = b;
+        var nv_id = $('#nv_id').val();
+        $.ajax({
+            type: 'POST',
+            url: '/admin/fetch_data_service/' + nv_id + "/" + id,
+            data: id,
+            contentType: false,
+            processData: false,
+            success: function(response) {
+
+            },
+            error: function(error) {
+
+            }
+        });
+
+    }
+</script>
+<script>
+    function store_service_data(a, b) {
+
+        var id = a.id;
+        var id2 = b.id;
+        var amount = parseInt($("#service_amount").val());
+        var amount1 = $("#" + id).val();
+        // alert(sum);
+        var description1 = $("#" + id2).val();
+        nv_id = $('#nv_id').val();
+        var sum = parseInt($("#sum").val());
+        // alert(sum);
+        $.ajax({
+
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            },
+
+            url: '/admin/store_service',
+            method: 'post',
+            data: {
+                'nv_id': nv_id,
+                'amount': amount,
+                'amount1': amount1,
+                'sum': sum,
+                'description1': description1
+            },
+            dataType: 'json',
+            success: function(response) {
+                // console.log(response);
+                var total_amt = response.total_amt;
+                total_amt = parseInt(total_amt);
+                var total1 = parseInt($('#service_amount').val());
+                total2 = parseInt(total2);
+                var sum = response.sum;
+
+                var total_budget = $("#total_buget").val();
+                total_budget = parseInt(total_budget);
+
+                if (amount != 0 && amount1 != 0) {
+
+                    var total = total_budget + total_amt;
+                    var tot_service = total_amt + total2;
+                    // alert(tot_service);
+                    total = total.toLocaleString('en-IN');
+                    $("#total_buget").empty();
+                    $("#total_buget").val(total);
+                    $('#sum').val(sum);
+                    // $(".budget").ready(function(){
+                    //         alert( document.getElementById("total_budget_both").innerHTML(total));
+                    // });
+                }
+                // console.log(sum);
+                // $("#sum").val(sum);
+                // $("#total_budget_both").val(total_amt); 
+
+
+            }
+
+        });
+
+    }
+</script>
+<script>
+    $(document).ready(function() {
+        $("#service_amount").change(function(e) {
+            var amount = parseFloat($("#service_amount").val()) || 0;
+            var total_budget = parseFloat($("#total_buget").val()) || 0;
+
+            if (amount != 0) {
+                var total = total_budget + amount;
+                $("#total_buget").val(total);
+            }
+        });
+
+        $("#approved_budget").change(function(e) {
+            var approved_budget = this.value;
+            var total_budget = parseFloat($("#total_buget").val()) || 0;
+            var add_budget = parseFloat($("#add_budget").val()) || 0;
+var total_mat_mat = calculateMaterialTotal();
+            var tax1 = parseFloat($('#tax_amount1').val());
+            var year3 = ($("#year3").val());
+            var selectedYear = ($("#exampleFormControlSelect").val()) || 0;
+            if (!isNaN(total_mat_mat) && !isNaN(tax1)) {
+                var total_mat_mat = total_mat_mat + ((total_mat_mat * tax1) / 100) || 0;
+            } else {
+                var total_mat_mat = total_mat_mat || 0;
+            }
+            if (approved_budget != '') {
+                if (selectedYear != 0) {
+                    // Check if approved budget exceeds the fiscal year amount
+                    if (approved_budget > total_mat_mat) {
+                        $('.approved_budget_error').html('Approved Budget should not be greater than FY ' + year3 + ' Amount');
+                    } else {
+                        $('.approved_budget_error').html('');
+                        var total = total_budget - approved_budget;
+                        if (total % 1 != 0) {
+                            $("#add_budget").val(total.toFixed(2));
+                        } else {
+                            $("#add_budget").val(total);
+                        }
+                        // $("#add_budget").val(total);
+                    }
+                } else {
+                    // Check if approved budget exceeds the total budget
+                    if (approved_budget > total_budget) {
+                        $('.approved_budget_error').html('Approved Budget should not be greater than Total Amount');
+                    } else {
+                        $('.approved_budget_error').html('');
+                        var total = total_budget - approved_budget;
+                        if (total % 1 != 0) {
+                            $("#add_budget").val(total.toFixed(2));
+                        } else {
+                            $("#add_budget").val(total);
+                        }
+                        // $("#add_budget").val(total);
+                    }
+                }
+            } else {
+                $("#add_budget").val(0);
+            }
+        });
+
+        function calculateBudget() {
+            var approved_budget = parseFloat($("#approved_budget").val());
+            var total_budget = parseFloat($("#total_buget").val()) || 0;
+            var add_budget = parseFloat($("#add_budget").val()) || 0;
+            var total_mat_mat = calculateMaterialTotal();
+            var tax1 = parseFloat($('#tax_amount1').val()) || 0;
+
+            var selectedYear = parseFloat($("#exampleFormControlSelect").val()) || 0;
+            if (!isNaN(total_mat_mat) && !isNaN(tax1)) {
+                total_mat_mat = total_mat_mat + ((total_mat_mat * tax1) / 100);
+            } else {
+                total_mat_mat = total_mat_mat || 0;
+            }
+
+            if (!isNaN(approved_budget)) {
+                if (selectedYear != 0) {
+                    if (approved_budget <= total_mat_mat) {
+                        var total = total_budget - approved_budget;
+                        if (total % 1 != 0) {
+                            $("#add_budget").val(total.toFixed(2));
+                        } else {
+                            $("#add_budget").val(total);
+                        }
+                    } else {
+                        $("#add_budget").val(0);
+                    }
+                } else {
+                    if (approved_budget <= total_budget) {
+                        var total = total_budget - approved_budget;
+                        if (total % 1 != 0) {
+                            $("#add_budget").val(total.toFixed(2));
+                        } else {
+                            $("#add_budget").val(total);
+                        }
+                        // $("#add_budget").val(total);
+                    } else {
+                        $("#add_budget").val(0);
+                    }
+                }
+            } else {
+                $("#add_budget").val(0);
+            }
+        }
+                        $("#total_budget").val(total_mat_mat);
+
+        $("#refreshButton").click(function() {
+            calculateBudget();
+        });
+    });
+    function calculateMaterialTotal() {
+    var total = 0;
+    
+    // Add more numbers to the array if you have more fields
+    [1, 2, 3].forEach(function(num) {
+        total += parseFloat($("#total_matyear" + num).val()) || 0;
+    });
+    
+    return total;
+}
+</script>
+<script>
+    function remove_ser_data(b) {
+        var id = b.id;
+        var amount = $("#" + id).val() || 0;
+        var total = $("#total_buget").val() || 0;
+        tot = parseInt(total) - parseInt(amount);
+        $("#total_buget").val(tot);
+
+    }
+
+    $(document).on('keydown', '.decimal', function(e) {
+        var type = $(this).hasClass('decimal') ? 'decimal' : '';
+        var key = e.key;
+        var isCtrlV = (e.ctrlKey && (key === 'v' || key === 'V'));
+        var isSelectAll = (key === "a" || key === 'A') && e.ctrlKey;
+        var isTab = key === "Tab" || (key === "Tab" && e.shiftKey);
+        var isReload = (key === "R" || key === "r" || key === "F5") && e.ctrlKey;
+        var keys = ["Del", "Delete", "Backspace", "Home", "End", "Up", "Down", "Left", "Right", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", ",", ".", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
+
+        if (isTab || isReload || isSelectAll || isCtrlV) {
+            return true;
+        }
+
+        switch (type) {
+            case 'decimal':
+                var invalidKey = $.inArray(key, keys) === -1;
+                break;
+
+                invalidKey = $.inArray(key, keys) === -1;
+        }
+
+        if (invalidKey) {
+            e.preventDefault();
+        }
+    });
+</script>
+<script>
+    function isNumberKey(evt) {
+        var charCode = (evt.which) ? evt.which : event.keyCode;
+        if (charCode > 31 && (charCode < 48 || charCode > 57)) {
+            return false;
+        }
+        return true;
+    }
+
+    function validateInput(input) {
+        input.value = input.value.replace(/[^\d]/g, '');
+    }
+</script>
+<script>
+    $(document).ready(function() {
+        $('.delete_attachments').on('click', function(e) {
+            e.preventDefault();
+            var fileId = $(this).data('file-id');
+            var downloadId = $(this).data('download-id');
+            var fileType = $(this).data('file-type');
+            //   alert(fileType);
+            // alert(fileId);
+            $.ajax({
+                type: 'DELETE',
+                url: '/admin/delete-file',
+                data: {
+                    fileId: fileId,
+                    fileType: fileType
+                },
+                success: function(response) {
+                    if (response.success == true) {
+                        // console.log('File deleted successfully');
+                        $('#' + downloadId).remove();
+                        $('#a' + downloadId).remove();
+                    }
+
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error deleting file:', error);
+                }
+            });
+        });
+    });
+</script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const dercApproval = document.getElementById('derc_approval');
+        const propNumber = document.getElementById('prop_number');
+        const derc_ref_no = document.getElementById('derc_ref_no');
+        const derc_app_date = document.getElementById('derc_app_date');
+
+        function togglePropNumber() {
+            if (dercApproval.value == 'Not Required' || dercApproval.value == 'Pre Approved Buckets' || dercApproval.value == 'DPR Not Submitted') {
+                propNumber.value = '';
+                derc_ref_no.value = '';
+                derc_app_date.value = '';
+                propNumber.disabled = true;
+                derc_ref_no.disabled = true;
+                derc_app_date.disabled = true;
+            } else if (dercApproval.value == 'DPR Submitted') {
+                derc_ref_no.value = '';
+                derc_app_date.value = '';
+                propNumber.disabled = false;
+                derc_ref_no.disabled = true;
+                derc_app_date.disabled = true;
+            } else {
+                propNumber.value = '';
+                propNumber.disabled = true;
+                derc_ref_no.disabled = false;
+                derc_app_date.disabled = false;
+            }
+        }
+
+        // Initial check on page load
+        togglePropNumber();
+
+        // Add event listener for change event
+        dercApproval.addEventListener('change', togglePropNumber);
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // List of fields with their max character limits
+        const fields = [{
+                id: 'proposal_name',
+                countId: 'proposal_count',
+                maxLength: 200
+            },
+            {
+                id: 'benefit',
+                countId: 'benefit_count',
+                maxLength: 2500
+            },
+            {
+                id: 'past_practice_text',
+                countId: 'past_practice_text_count',
+                maxLength: 1000
+            },
+            {
+                id: 'cause_analysis',
+                countId: 'cause_analysis_count',
+                maxLength: 1000
+            },
+            {
+                id: 'special_remarks',
+                countId: 'special_remarks_count',
+                maxLength: 500
+            },
+        ];
+
+        // Initialize character count for each field
+        fields.forEach(field => {
+            const element = document.getElementById(field.id);
+            const countElement = document.getElementById(field.countId);
+
+            if (element && countElement) {
+                // Update count on page load
+                updateCharCount(element.value.length, countElement, field.maxLength);
+
+                // Update count on input change
+                element.addEventListener('input', () => {
+                    const contentLength = element.value.length;
+                    updateCharCount(contentLength, countElement, field.maxLength);
+                });
+            }
+        });
+
+        function updateCharCount(length, countElement, maxLength) {
+            countElement.textContent = `${length} / ${maxLength} characters`;
+        }
+    });
+
+    $(document).ready(function() {
+        $(document).on('click', '[id^=ButtonRemove]', function(e) {
+            e.preventDefault();
+
+            const buttonId = $(this).attr('id');
+            const index = buttonId.replace('ButtonRemove', '');
+            const nv_id = $('#nv_id').val();
+            const service_id = $('#service_id').val();
+            $.ajax({
+                url: '/admin/nv_service/removeServiceAmount',
+                type: 'POST',
+                data: {
+                    index: index,
+                    nv_id: nv_id,
+                    service_id: service_id,
+                    _token: '{{ csrf_token() }}'
+                },
+                success: function(response) {
+                    if (response.success) {
+                        Swal.fire({
+                            text: "Service Amount and Description Fields are Removed Successfully.",
+                            type: 'success',
+                            buttonsStyling: false,
+                            confirmButtonText: "OK",
+                            confirmButtonClass: "btn font-weight-bold btn-primary"
+                        }).then(function() {
+                            window.location.reload();
+                        });
+                        $(this).closest('.row').remove();
+                    } else {
+                        alert(response.message);
+                    }
+                },
+                error: function(xhr) {
+                    // Handle error
+                    alert('An error occurred while removing the item.');
+                }
+            });
+        });
+    });
+</script>
+<script>
+    document.addEventListener("input", function(e) {
+
+        const fixedIds = [
+            "past_3_year_actual_cost1",
+            "past_3_year_actual_cost2",
+            "past_3_year_actual_cost3",
+            "past_3_year_actual_cost_service1",
+            "past_3_year_actual_cost_service2",
+            "past_3_year_actual_cost_service3",
+            "estimate_amount_of_service",
+            "estimate_amount_of_service_civil",
+            "estimate_amount_of_rr_chnage",
+            "estimate_amount_other",
+            "ser_rate",
+            "total_matyear1",
+            "total_matyear2",
+            "total_matyear3"
+        ];
+
+        const isServiceAmount = e.target.id.startsWith("service_amount");
+
+        if (fixedIds.includes(e.target.id) || isServiceAmount) {
+
+            let value = e.target.value;
+
+            // allow only numbers and decimal
+            value = value.replace(/[^0-9.]/g, "");
+
+            // allow only one decimal point
+            if (value.split('.').length > 2) {
+                value = value.substring(0, value.lastIndexOf('.'));
+            }
+
+            e.target.value = value;
+        }
+    });
+</script>
+
+@endpush

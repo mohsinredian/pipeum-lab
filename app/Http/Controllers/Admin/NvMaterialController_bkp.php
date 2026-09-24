@@ -1,0 +1,6082 @@
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use Illuminate\Support\Facades\File;
+use App\Jobs\SendEmailJob;
+use Illuminate\Support\Facades\Queue;
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+use App\Models\Employee;
+use DateTime;
+use Session;
+use Illuminate\Support\Facades\Storage;
+use ZipArchive;
+use App\Models\Chat;
+use App\Models\Division;
+use App\Models\Tax;
+use App\Models\Department;
+use App\Models\Opex;
+use App\Models\Capex;
+use App\Models\User;
+use App\Models\Location;
+use App\Models\Workflow;
+use App\Models\NVMaterial;
+use App\Models\MateriBOQBulk;
+use App\Models\ServiceBOQBulk;
+use App\Models\Boqmaterial;
+use App\Models\MasterMaterialboq;
+use App\Models\MaterialDoc;
+use App\Models\Nvsericestatus;
+use App\Models\NeedValidation;
+use App\Models\NVService;
+use App\Models\SupDept;
+use App\Models\ServiceDoc;
+use App\Models\Clarification;
+use Illuminate\Support\Facades\Cookie;
+use App\Models\budget;
+use Illuminate\Support\Facades\Validator;
+use Redirect;
+use Carbon\Carbon;
+// use App\imports\ProviderBulkImport;
+use Config;
+use DB;
+// use File;
+use Exception;
+use Hash;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
+use Silber\Bouncer\Database\Role;
+use Illuminate\Support\Facades\Mail;
+use League\Csv\Reader;
+use Illuminate\Support\Facades\Schema;
+use App\Models\Notification;
+use App\Models\NVmaterialstatus;
+use App\Models\TbleMaterialStage;
+// use Validator;
+// use Maatwebsite\Excel\Facades\Excel;
+// use League\Csv\Reader;
+// use League\Csv\Statement;
+// use Illuminate\Support\Facades\Validator;
+use App\Services\ExcelImportService;
+use App\Services\ActivityLogService;
+use App\Models\CapexBudget;
+use App\Models\OpexBudget;
+// use Barryvdh\DomPDF\Facade\PDF;
+// use App\PDFGenerate;
+use PDF;
+use App\Models\OpexWorkflow;
+
+
+class NvMaterialController extends Controller
+{
+    public function __construct()
+    {
+        $this->middleware(function ($request, $next) {
+            Session::put('active', 'employees');
+
+            return $next($request);
+        });
+    }
+
+
+
+    public function downloadNvPdf($id, $userId, Request $request)
+    {
+        $user = \Auth()->user();
+<<<<<<< HEAD
+=======
+        // if ($user->role_id != 1 && (int)$userId !== $user->id) {
+        //     abort(403, 'Unauthorized access.');
+        // }
+>>>>>>> ea44999c776e3a2cd9e1b4e1abc045995dde0d18
+        $id = $request->id;
+        $service_id = $id;
+        $NeedValidation = NeedValidation::findOrFail($id);
+        $material_details = NVMaterial::where('nv_id', $id)->orderBy('id', 'desc')->first();
+        if (!$material_details) {
+            abort(404, 'Material not found for this NV.');
+        }
+        $material_doc = MaterialDoc::where('service_id', $material_details->id)->orderBy('id', 'desc')->first();
+        $employees = Employee::where('department_id', $material_details->dept_id)->where('user_id', $user->id)->first();
+        $chats = Chat::where('material_id', $id)->where('user_login_id', $user->id)->get();
+        $material_import   =  MateriBOQBulk::where('nv_id', $id)->where('material_id', $material_details->id)->orderBy('id', 'desc')->get();
+        $service_import = ServiceBOQBulk::where('nv_id', $id)->where('service_id', $material_details->id)->orderBy('id', 'desc')->get();
+        $nv_year = NeedValidation::select('id', 'fiscal_year')->where('id', $id)->first();
+        // $dept_name = SupDept::where('id', $employees->super_department)->first('name');
+        $dept_name = null;
+
+        if ($employees && $employees->super_department) {
+            $dept_name = SupDept::where('id', $employees->super_department)->value('name');
+        }
+        $nv_number = "NV/" . ($NeedValidation->service->name ?? '') . "/" . ($NeedValidation->budget_type ?? '') . "/" . ($material_details->department->name ?? '') . "/FY" . ($nv_year->fiscal_year ?? '') . "/00" . ($material_details->nv_id ?? '');
+        $data = [
+            'id' => $id ?? '',
+            'employees' => $employees ?? '',
+            'service_import' => $service_import ?? '',
+            'material_import' => $material_import ?? '',
+            'material_details' => $material_details ?? '',
+            'material_doc' => $material_doc ?? '',
+            'nv_year' => $nv_year ?? '',
+            'chats' => $chats ?? '',
+            'dept_name' => $dept_name ?? '',
+        ];
+        // $coverPageView = view('admin.cover')->render();
+
+        // Load the main content view
+
+        $mainContentView1 = view('admin.nvMaterial.data', $data)->render();
+        $mainContentView2 = view('admin.nvMaterial.nv-pdf', $data)->render();
+        if (count($data['service_import']) > 0 || count($data['material_import']) > 0) {
+            $mainContentView3 = view('admin.nvMaterial.BOQpdf', $data)->render();
+            $pdfContent = $mainContentView2 . $mainContentView1 . $mainContentView3;
+        } else {
+            $pdfContent = $mainContentView2 . $mainContentView1;
+        }
+        $pdf = PDF::loadHTML($pdfContent);
+        // ->setPaper([0, 0, 1000.67677,900.4343], 'landscape');
+
+
+        // // Add page numbers and NV number
+        // $pdf->output();
+        // $dompdf = $pdf->getDomPDF();
+        // $canvas = $dompdf->getCanvas();
+        // $canvas->page_script(function ($pageNumber, $pageCount, $canvas, $fontMetrics) use ($nv_number) {
+        //     $pageText = "Page $pageNumber of $pageCount";
+        //     $nvText = $nv_number;
+        //     $font = $fontMetrics->get_font("Arial, Helvetica, sans-serif", "normal");
+        //     $size = 10;
+        //     $width = $canvas->get_width();
+        //     $height = $canvas->get_height();
+        //     $textWidth = $fontMetrics->getTextWidth($pageText, $font, $size);
+        //     $canvas->text($width - $textWidth - 10, $height - 30, $pageText, $font, $size);
+        //     $textWidth = $fontMetrics->getTextWidth($nvText, $font, $size);
+        //     $canvas->text($width - $textWidth - 10, $height - 15, $nvText, $font, $size);
+        // });
+
+
+        // Save the PDF to a temporary directory
+        $tempDir = storage_path('app/temp/');
+        File::makeDirectory($tempDir, 0755, true, true);
+        $pdfFile = $tempDir . 'NVMaterial.pdf';
+        $pdf->save($pdfFile);
+
+        // Return the PDF file as a response for display and download
+        return response()->file($pdfFile, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="NVMaterial.pdf"',
+        ])->deleteFileAfterSend(true);
+    }
+
+
+
+    public function downloadNvMaterialboqPdf($id, $userId, Request $request)
+    {
+        $user = \Auth()->user();
+<<<<<<< HEAD
+=======
+        // if ($user->role_id != 1 && (int)$userId !== $user->id) {
+        //     abort(403, 'Unauthorized access.');
+        // }
+>>>>>>> ea44999c776e3a2cd9e1b4e1abc045995dde0d18
+        $id = $request->id;
+        $service_id = $id;
+        $NeedValidation = NeedValidation::findOrFail($id);
+
+
+        $material_details = NVMaterial::where('nv_id', $id)->orderBy('id', 'desc')->first();
+        if (!$material_details) {
+            abort(404, 'Material not found for this NV.');
+        }
+        $material_doc = MaterialDoc::where('service_id', $material_details->id)->orderBy('id', 'desc')->first();
+
+        $employees = Employee::where('department_id', $material_details->dept_id)->get();
+        $chats = Chat::where('material_id', $id)->where('user_login_id', $user->id)->get();
+        $material_import = MateriBOQBulk::where('nv_id', $id)->where('material_id', $material_details->id)->orderBy('id', 'desc')->get();
+        $service_import = ServiceBOQBulk::where('nv_id', $id)->where('service_id', $material_details->id)->orderBy('id', 'desc')->get();
+
+        $data = [
+            'employees' => $employees ?? '',
+            'service_import' => $service_import ?? '',
+            'material_import' => $material_import ?? '',
+            'material_details' => $material_details ?? '',
+            'material_doc' => $material_doc ?? '',
+
+            'chats' => $chats ?? ''
+        ];
+
+        $mainContentView = view('admin/nvMaterial/MaterialBOQpdf', $data)->render();
+
+        // Combine the cover page and main content
+        $pdfContent = $mainContentView;
+
+        // Generate PDF with different headers for the first page and other pages
+        $pdf = PDF::loadHTML($pdfContent)->setPaper('A3', 'landscape');
+
+        // Remove header and footer from subsequent pages
+        $pdf->getDomPDF()->set_option('enable_html5_parser', true);
+        $pdf->getDomPDF()->set_option('isPhpEnabled', true);
+        $pdf->getDomPDF()->set_option('isRemoteEnabled', true);
+
+        // Define the CSS rules to hide header and footer elements on subsequent pages
+        $css = '@page :first { header { display: none; } footer { display: none; } }';
+        $pdf->getDomPDF()->getOptions()->set(['isPhpEnabled' => true, 'isRemoteEnabled' => true, 'csslib' => $css]);
+
+        return $pdf->download('NVMaterialBOQ.pdf');
+    }
+
+    public function downloadMaterialFiles($id, $userId, Request $request)
+    {
+        $user = \Auth()->user();
+        // if ($user->role_id != 1 && (int)$userId !== $user->id) {
+        //     abort(403, 'Unauthorized access.');
+        // }
+        $id = $request->id;
+
+        // Find the material details and associated material documents
+        $material_details = NVMaterial::where('nv_id', $id)->orderBy('id', 'desc')->first();
+        if (!$material_details) {
+            abort(404, 'Material not found for this NV.');
+        }
+        $material_doc = MaterialDoc::where('service_id', $material_details->id)->orderBy('id', 'desc')->first();
+
+        // Create a temporary zip file
+        $zip = new ZipArchive();
+        $zipFilename = 'MaterialAttachments.zip';
+        $zip->open($zipFilename, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+
+        try {
+            // Add files to the zip archive if they exist
+            if (!empty($material_doc->previous_work_order)) {
+                $zip->addFile(public_path('materials-doc/' . $material_doc->previous_work_order), $material_doc->previous_work_order);
+            }
+            if (!empty($material_doc->derc_stakeholder_approvals)) {
+                $zip->addFile(public_path('materials-doc/' . $material_doc->derc_stakeholder_approvals), $material_doc->derc_stakeholder_approvals);
+            }
+            if (!empty($material_doc->consumption_details)) {
+                $zip->addFile(public_path('materials-doc/' . $material_doc->consumption_details), $material_doc->consumption_details);
+            }
+            if (!empty($material_doc->vend_quatation)) {
+                $zip->addFile(public_path('materials-doc/' . $material_doc->vend_quatation), $material_doc->vend_quatation);
+            }
+            if (!empty($material_doc->photo_product)) {
+                $zip->addFile(public_path('materials-doc/' . $material_doc->photo_product), $material_doc->photo_product);
+            }
+            if (!empty($material_doc->material_procurement)) {
+                $zip->addFile(public_path('materials-doc/' . $material_doc->material_procurement), $material_doc->material_procurement);
+            }
+            if (!empty($material_doc->budget_for_both)) {
+                $zip->addFile(public_path('materials-doc/' . $material_doc->budget_for_both), $material_doc->budget_for_both);
+            }
+            // if (!empty($material_doc->others)) {
+            //     $zip->addFile(public_path('materials-doc/'.$material_doc->others), $material_doc->others);
+            // }
+            if (!empty($material_doc->new_product)) {
+                $zip->addFile(public_path('materials-doc/' . $material_doc->new_product), $material_doc->new_product);
+            }
+            if (!empty($material_doc->cm_rate_ref)) {
+                $zip->addFile(public_path('materials-doc/' . $material_doc->cm_rate_ref), $material_doc->cm_rate_ref);
+            }
+            if (!empty($material_doc->vendor_quatation)) {
+                $zip->addFile(public_path('materials-doc/' . $material_doc->vendor_quatation), $material_doc->vendor_quatation);
+            }
+            if (!empty($material_doc->last_purchase_price)) {
+                $zip->addFile(public_path('materials-doc/' . $material_doc->last_purchase_price), $material_doc->last_purchase_price);
+            }
+            if (!empty($material_doc->user_estimation)) {
+                $zip->addFile(public_path('materials-doc/' . $material_doc->user_estimation), $material_doc->user_estimation);
+            }
+            if (!empty($material_doc->cost_calculation_for_service)) {
+                $zip->addFile(public_path('materials-doc/' . $material_doc->cost_calculation_for_service), $material_doc->cost_calculation_for_service);
+            }
+            $zip->close();
+
+            // Download the zip file
+            if (file_exists($zipFilename)) {
+                $headers = [
+                    'Content-Type' => 'application/zip',
+                    'Content-Disposition' => 'attachment; filename="' . $zipFilename . '"',
+                ];
+                $response = response()->download($zipFilename, 'MaterialAttachments.zip', $headers);
+
+                // Unset attachments data and delete the temporary zip file
+                //  unlink($zipFilename);
+
+                return $response;
+            } else {
+
+                return redirect()->back()->with('Failed to create the zip file.');
+            }
+        } catch (Exception $e) {
+            // Handle any exceptions that may occur during the zip file creation
+            // return response()->json(['error' => 'An error occurred while creating the zip file.']);
+            return redirect()->back()->with('Failed to create the zip file.');
+        }
+    }
+
+
+    public function create_nv_material(Request $request)
+    {
+        $nv_id = request()->segment(4);
+        $user = \Auth()->user();
+        $nv = NeedValidation::where('id', $nv_id)->where('delete_draft', 0)->orderBy('id', 'desc')->first();
+
+        $needvalidation = NeedValidation::select('id', 'proposal_type')->where('id', $nv_id)->orderBy('id', 'desc')->first();
+        $data = NeedValidation::where('user_id', $user->id)->select('fiscal_year')->latest()->first();
+        $material_details = "";
+        $material_doc = "";
+
+
+        $material_detail = NVMaterial::select('*')->where('nv_id', $nv_id)->orderBy('id', 'desc')->first();
+        if (empty($material_detail)) {
+            $material_details = "";
+            $material_doc = "";
+        } else {
+            if ($material_detail->material_id != "") {
+                $material_details = NVMaterial::select('*')->where('id', $material_detail->id)->orderBy('id', 'desc')->first();
+                $material_doc = MaterialDoc::select('*')->where('service_id', $material_detail->id)->orderBy('id', 'desc')->first();
+            } else {
+                $segment_id = request()->segment(6);
+                if (!empty($segment_id)) {
+                    $material_details = NVMaterial::select('*')->where('id', $segment_id)->orderBy('id', 'desc')->first();
+                    $material_doc = MaterialDoc::select('*')->where('service_id', $segment_id)->orderBy('id', 'desc')->first();
+                } else {
+                    $material_details = NVMaterial::select('*')->where('id', $material_detail->id)->orderBy('id', 'desc')->first();
+                    $material_doc = MaterialDoc::select('*')->where('service_id', $material_detail->id)->orderBy('id', 'desc')->first();
+                }
+            }
+        }
+        $material = NVMaterial::where('nv_id', $nv_id)->exists();
+        if ($material == true) {
+            $material_import = MateriBOQBulk::where('nv_id', $nv_id)->where('material_id', $material_details->id)->orderBy('id', 'desc')->get();
+            $service_import = ServiceBOQBulk::where('nv_id', $nv_id)->where('service_id', $material_details->id)->orderBy('id', 'desc')->get();
+        } else {
+            $material_import = MateriBOQBulk::where('nv_id', $nv_id)->orderBy('id', 'desc')->get();
+            $service_import = ServiceBOQBulk::where('nv_id', $nv_id)->orderBy('id', 'desc')->get();
+        }
+
+        // dd($material_details->id);
+        $nv_year = NeedValidation::select('id', 'fiscal_year')->where('id', $nv_id)->first();
+        $divisions = Division::select('id', 'name')->where('status', 1)->get();
+        $employee = Employee::where('user_id', $user->id)->get();
+        $firstEmployee = $employee->first();
+        if (($user->role_id) != 1) {
+
+            $departments = Department::select('id', 'name')->where('status', 1)->where('id', $firstEmployee ? $firstEmployee->department_id : null)->get();
+        } else {
+            $departments = Department::select('id', 'name')->where('status', 1)->get();
+        }
+
+        $avlbgt = 0;
+        $deptid = \Auth()->user()->department_id;
+
+        $lastNv = NeedValidation::select('id', 'budgetary_provision', 'fiscal_year')
+            ->where('id', '<',  $nv_id)
+            ->whereIn('service_id', [1, 2])
+            ->where('budget_type', $nv->budget_type)
+            ->where('fiscal_year', $nv->fiscal_year)
+            ->where('budgetary_provision', 'Approved')
+            ->where('department_id', $deptid)
+            ->where('delete_draft', 0)
+            ->orderBy('id', 'desc')
+            ->first();
+
+
+
+
+        $avl = budget::where('fiscal_year', $nv->fiscal_year)->where('dept_id', $nv->department_id)->where('budget_type', $nv->budget_type)->orderBy('id', 'desc')->first();
+        if ($nv->budget_type == "CAPEX") {
+
+            // $budget12 = CAPEX::where('department_id',$nv->department_id)->latest('updated_at')->first();
+            if (NVMaterial::where('nv_id', $nv->id)->first()) {
+                $budget12 = NVMaterial::where('nv_id', $nv->id)->where('dept_id', $nv->department_id)->first('budget_avl');
+            } else {
+
+                $budget12 = CapexBudget::where('department_id', $nv->department_id)->where('fiscal_year', $nv->fiscal_year)->first('revised_budget');
+            }
+        } else {
+            if (NVMaterial::where('nv_id', $nv->id)->first()) {
+                $budget12 = NVMaterial::where('nv_id', $nv->id)->where('dept_id', $nv->department_id)->first('budget_avl');
+            } else {
+                $budget12 = OpexBudget::where('department_id', $nv->department_id)->where('fiscal_year', $nv->fiscal_year)->first('revised_budget');
+            }
+        }
+
+        // $budget = $budget12->revised_budget;
+
+
+        if (isset($nv['id'])) {
+            if (!$avl) {
+                $avlbgt = $budget12;
+            } else {
+                $ser_budget = NVService::where('nv_id', $nv->id)->first('budget_available');
+                // IF MATERIAL TABLE HAVE NO DATA
+                if ($ser_budget == null) {
+                    $checkmaterialid = NVMaterial::select('id', 'nv_id')->where('nv_id', $nv->id)->first();
+                    $checkserviceid = NVService::select('id')->where('nv_id', $nv->id)->first();
+                    $materialId =  $checkmaterialid ?  $checkmaterialid->id : null;
+                    $serviceId =  $checkserviceid ?  $checkserviceid->id : null;
+                    $nv_status = Nvsericestatus::where('nv_id', $nv_id)
+                        ->orderBy('id', 'desc')
+                        ->first();
+                    // dd($nv_status);
+
+                    $matt_budget = NVMaterial::where('nv_id', $nv->id)->first('budget_avl');
+                    $budget = budget::where('fiscal_year', $nv->fiscal_year)->where('dept_id', $nv->department_id)->where('budget_type', $nv->budget_type)->first();
+                    if ($budget != null) {
+                        $lastTotalBudgetBoth = budget::where('nv_id', $budget->nv_id)->sum('total_budget');
+                        $lastavlBudget = budget::where('nv_id', $budget->nv_id)->sum('budget_avl');
+                        $finalamount = $lastavlBudget - $lastTotalBudgetBoth;
+                        $avlbgt = $finalamount;
+                    }
+                } else {
+
+                    // IF MATERIAL TABLE HAVE  DATA
+                    $budget = budget::where('fiscal_year', $nv->fiscal_year)->where('dept_id', $nv->department_id)->where('budget_type', $nv->budget_type)->first();
+                    if ($budget != null) {
+                        $lastTotalBudgetBoth = budget::where('nv_id', $budget->nv_id)->sum('total_budget');
+                        $lastavlBudget = budget::where('nv_id', $budget->nv_id)->sum('budget_avl');
+                        $finalamount = $lastavlBudget - $lastTotalBudgetBoth;
+                        $avlbgt =  $finalamount;
+                    }
+                }
+            }
+        } else {
+
+            $checkmaterialid = NVMaterial::select('id', 'nv_id')->where('nv_id', $lastNv->getKey())->first();
+            $checkserviceid = NVService::select('id')->where('nv_id', $lastNv->getKey())->first();
+            $materialId =  $checkmaterialid ?  $checkmaterialid->id : null;
+            $serviceId =  $checkserviceid ?  $checkserviceid->id : null;
+            $nv_status = Nvsericestatus::where('material_id', $materialId)
+                ->where('nv_id', '<', $nv_id)
+                ->orWhere('service_id', $serviceId)
+                ->orderBy('id', 'desc')
+                ->first();
+
+            $nv1 = $nv->where('budgetary_provision', 'Additional')->orderBy('id', 'desc')->first();
+
+
+
+
+            if ($nv_status->hod_status == 2 || $nv_status->ces_rew1_status == 2 || $nv_status->ces_rew2_status == 2 || $nv_status->ces_rew3_status == 2 || $nv_status->ces_rew4_status == 2 || $nv_status->work_rew1_status == 2 || $nv_status->work_rew2_status == 2 || $nv_status->work_rew3_status == 2 || $nv_status->work_rew4_status == 2 || $nv_status->approver_status == 2 || $nv_status->work_rew1dep2_status == 2 || $nv_status->work_rew2dep2_status == 2 || $nv_status->work_rew3dep2_status == 2 || $nv_status->work_rew4dep2_status == 2 || $nv_status->approverdep2_status == 2 || $nv_status->work_rew1dep3_status == 2 || $nv_status->work_rew2dep3_status == 2 || $nv_status->work_rew3dep3_status == 2 || $nv_status->work_rew4dep3_status == 2 || $nv_status->approverdep3_status == 2 || $nv_status->work_rew1dep4_status == 2 || $nv_status->work_rew2dep4_status == 2 || $nv_status->work_rew3dep4_status == 2 || $nv_status->work_rew4dep4_status == 2 || $nv_status->approverdep4_status == 2 || $nv_status->work_rew1dep5_status == 2 || $nv_status->work_rew2dep5_status == 2 || $nv_status->work_rew3dep5_status == 2 || $nv_status->work_rew4dep5_status == 2 || $nv_status->approverdep5_status == 2) {
+
+                $mat_budget = NVMaterial::where('nv_id', $nv_status->nv_id)->first();
+
+                if ($mat_budget == null) {
+                    $ser_budget = NVService::where('nv_id', $nv_status->nv_id)->first();
+
+                    $budget = budget::where('fiscal_year', $nv->fiscal_year)->where('dept_id', $nv->department_id)->where('budget_type', $nv->budget_type)->first();
+                    $budget_total = $budget->total_budget - $ser_budget->total_buget;
+                    $lastavlBudget = budget::where('nv_id', $budget->id)->sum('budget_avl');
+                    $finalamount = $lastavlBudget - $budget_total;
+                    $avlbgt = $mat_budget == null ? $finalamount : $mat_budget->budget_avl;
+                    // dd($avlbgt);
+
+                } else {
+                    $budget = budget::where('fiscal_year', $nv->fiscal_year)->where('dept_id', $nv->department_id)->where('budget_type', $nv->budget_type)->first();
+                    $budget_total = $budget->total_budget - $mat_budget->total_budget_both;;
+                    $lastavlBudget = budget::where('nv_id', $budget->id)->sum('budget_avl');
+                    $finalamount = $lastavlBudget - $budget_total;
+                    $avlbgt = $mat_budget == null ? $finalamount : $mat_budget->budget_avl;
+                }
+            } elseif ($nv_status->ceo_status == 1 && $nv->budgetary_provision == "Additional") {
+
+                if (isset($nv_status['material_id'])) {
+                    $lastTotalBudgetBoth1 = NVMaterial::where('nv_id', $lastNv->id)->sum('budget_avl');
+                    $lastavlBudget1 = NVMaterial::where('nv_id', $lastNv->id)->sum('total_budget_both');
+                    $lastavlBudget12 = NVMaterial::where('nv_id', $nv1->id)->sum('total_budget_both');
+                    $finalamount1 = $lastTotalBudgetBoth1 - $lastavlBudget1;
+                    $avlbgt = $finalamount1;
+                }
+                if (isset($nv_status['service_id'])) {
+                    $lastTotalBudgetBoth = NVService::where('nv_id', $nv1->id)->sum('total_buget');
+                    $lastavlBudget = NVService::where('nv_id', $lastNv->id)->sum('budget_available');
+                    $finalamount = $lastavlBudget - $lastTotalBudgetBoth;
+                    $avlbgt = $finalamount;
+                }
+                $available_budget = NeedValidation::select('delete_draft', 'tbl_material.total_budget_both', 'tbl_service.total_buget', 'needvalidations.id', 'nvservicestatus.service_id', 'nvservicestatus.material_id')
+                    ->leftJoin('nvservicestatus', 'nvservicestatus.nv_id', '=', 'needvalidations.id')
+                    ->leftJoin('tbl_material', 'tbl_material.nv_id', '=', 'needvalidations.id')
+                    ->leftJoin('tbl_service', 'tbl_service.nv_id', '=', 'needvalidations.id')
+                    ->where('fiscal_year', $data->fiscal_year)
+                    ->where('delete_draft', 0)
+                    ->orderBy('id', 'desc')
+                    ->get();
+            } else {
+
+                $ser_budget = NVService::where('nv_id', $lastNv->id)->first('budget_available');
+                if ($ser_budget == null) {
+                    $matt_budget = NVMaterial::where('nv_id', $nv->id)->first('budget_avl');
+
+                    $budget = budget::where('fiscal_year', $nv->fiscal_year)->where('dept_id', $nv->department_id)->where('budget_type', $nv->budget_type)->first();
+                    $lastTotalBudgetBoth = budget::where('nv_id', $budget->nv_id)->sum('total_budget');
+                    $lastavlBudget = budget::where('nv_id', $budget->nv_id)->sum('budget_avl');
+                    $finalamount = $lastavlBudget - $lastTotalBudgetBoth;
+                    // $avlbgt = $matt_budget != null ? $matt_budget->budget_avl : $finalamount ;
+                    // dd($lastavlBudget,$lastTotalBudgetBoth,$avlbgt,$matt_budget == null);  
+                    $avlbgt = $finalamount;
+                    // dd($matt_budget->budget_avl,$lastTotalBudgetBoth,$lastavlBudget,$avlbgt);
+                } else {
+                    // dd(1);
+                    $budget = budget::where('fiscal_year', $nv->fiscal_year)->where('dept_id', $nv->department_id)->where('budget_type', $nv->budget_type)->first();
+                    $lastTotalBudgetBoth = budget::where('nv_id', $budget->nv_id)->sum('total_budget');
+                    $lastavlBudget = budget::where('nv_id', $budget->nv_id)->sum('budget_avl');
+                    $finalamount = $lastavlBudget - $lastTotalBudgetBoth;
+                    // $avlbgt = $ser_budget != null ? $finalamount : $ser_budget->budget_available;  
+                    $avlbgt =  $finalamount;
+                    // dd($lastTotalBudgetBoth,$lastavlBudget,$avlbgt);
+                }
+            }
+        }
+
+        $totalId = NeedValidation::pluck('id');
+
+        $latestData = Nvsericestatus::where('nv_id', $nv_id)->get();
+        $statusFields = [
+            'ceo_status',
+            'rv1_status',
+            'rv2_status',
+            'rv3_status',
+            'rv4_status',
+            'hod_status',
+            'ces_rew1_status',
+            'ces_rew2_status',
+            'ces_rew3_status',
+            'ces_rew4_status',
+            'ces_status',
+            'work_rew1_status',
+            'work_rew2_status',
+            'work_rew3_status',
+            'work_rew4_status',
+            'cpmg_status',
+            'work_rew1dep2_status',
+            'work_rew2dep2_status',
+            'work_rew3dep2_status',
+            'work_rew4dep2_status',
+            'cto_status',
+            'work_rew1dep3_status',
+            'work_rew2dep3_status',
+            'work_rew3dep3_status',
+            'work_rew4dep3_status',
+            'ceo_nominee_status',
+            'work_rew1dep4_status',
+            'work_rew2dep4_status',
+            'work_rew3dep4_status',
+            'work_rew4dep4_status',
+            'ceo_nominee2_status',
+            'groupcio_status',
+        ];
+
+        $latest = $latestData->filter(function ($data) use ($statusFields) {
+            foreach ($statusFields as $field) {
+                if ($data->$field == 2) {
+                    return true;
+                }
+            }
+            return false;
+        });
+
+        $locations = Location::select('id', 'name')->where('status', 1)->get();
+        $role = Role::select('id', 'title',)->where('id', '!=', 1)->get();
+        $taxes = Tax::select('id', 'tax',)->where('status', 1)->get();
+        $currentUrl = url()->current();
+        $request->session()->put('current_url', $currentUrl);
+
+        $currentDate = Carbon::now();
+
+
+
+        if ($currentDate->month >= 4) {
+            $financialYearStart = Carbon::create($currentDate->year, 4, 1);
+        } else {
+            $financialYearStart = Carbon::create($currentDate->year - 1, 4, 1);
+        }
+        $financialYearEnd = $financialYearStart->copy()->addYear()->subDay();
+        $currentFinancialYear = $financialYearStart->format('Y') . '-' . $financialYearEnd->format('y');
+
+        $nextFinancialYearStart = $financialYearStart->copy()->addYear();
+        $nextFinancialYearEnd = $nextFinancialYearStart->copy()->addYear()->subDay();
+        $nextFinancialYear = $nextFinancialYearStart->format('Y') . '-' . $nextFinancialYearEnd->format('y');
+
+        $nextToNextFinancialYearStart = $nextFinancialYearStart->copy()->addYear();
+        $nextToNextFinancialYearEnd = $nextToNextFinancialYearStart->copy()->addYear()->subDay();
+        $nextToNextFinancialYear = $nextToNextFinancialYearStart->format('Y') . '-' . $nextToNextFinancialYearEnd->format('y');
+        return view('admin.nvMaterial.create', compact('currentFinancialYear', 'nextFinancialYear', 'nextToNextFinancialYear', 'taxes', 'latest', 'divisions', 'needvalidation', 'locations', 'material_import', 'service_import', 'role', 'departments', 'material_details', 'material_doc', 'nv', 'nv_year', 'avlbgt'));
+    }
+    public function edit_material($id, $year)
+    {
+        $data = MateriBOQBulk::where(['id' => $id])->first();
+        $materialCodes = MateriBOQBulk::pluck('material_code')->toArray();
+        $nv_material = NeedValidation::where('id', $data->nv_id)->first();
+        $fiscal = explode("-", $year);
+        $yearCnt = count($fiscal);
+        $fiscalArr = array();
+        if (isset($fiscal[0])) {
+            $fiscalArr['fiscal1'] = $fiscal[0] . '-' . $fiscal[0] + 1;
+        }
+        if (isset($fiscal[1])) {
+            $fiscalArr['fiscal2'] = $fiscal[1] . '-' . $fiscal[1] + 1;
+        }
+        if (isset($fiscal[2])) {
+            $fiscalArr['fiscal3'] = $fiscal[2] . '-' . $fiscal[2] + 1;
+        }
+        return view('admin.nvMaterial.edit', compact('data', 'materialCodes', 'nv_material', 'fiscalArr'));
+    }
+
+    public function delete_material($id)
+    {
+        try {
+            $floor = MateriBOQBulk::findOrFail($id);
+            $data = MateriBOQBulk::where('id', $id)->select(
+                'amount',
+                'april1',
+                'may1',
+                'june1',
+                'july1',
+                'august1',
+                'september1',
+                'oct1',
+                'nov1',
+                'dec1',
+                'jan1',
+                'feb1',
+                'march1',
+                'rate',
+                'april2',
+                'may2',
+                'june2',
+                'july2',
+                'august2',
+                'september2',
+                'oct2',
+                'nov2',
+                'dec2',
+                'jan2',
+                'feb2',
+                'march2',
+                'april3',
+                'may3',
+                'june3',
+                'july3',
+                'august3',
+                'september3',
+                'oct3',
+                'nov3',
+                'dec3',
+                'jan3',
+                'feb3',
+                'march3'
+            )->first();
+            $mat_amount = $data->amount;
+            $total_amount1 = ($data->april1 + $data->may1 + $data->june1 + $data->july1 + $data->august1 + $data->september1 + $data->oct1 + $data->nov1
+                + $data->dec1 + $data->jan1 + $data->feb1 + $data->march1) * $data->rate;
+            $total_amount2 = ($data->april2 + $data->may2 + $data->june2 + $data->july2 + $data->august2 + $data->september2 + $data->oct2 + $data->nov2
+                + $data->dec2 + $data->jan2 + $data->feb2 + $data->march2) * $data->rate;
+            $total_amount3 = ($data->april3 + $data->may3 + $data->june3 + $data->july3 + $data->august3 + $data->september3 + $data->oct3 + $data->nov3
+                + $data->dec3 + $data->jan3 + $data->feb3 + $data->march3) * $data->rate;
+            $floor->delete();
+
+            $response['result'] = 'success';
+            $response['msg'] = 'Material Deleted';
+            $response['response'] = $mat_amount;
+            $response['total_amount1'] = $total_amount1 ?? 0;
+            $response['total_amount2'] = $total_amount2 ?? 0;
+            $response['total_amount3'] = $total_amount3 ?? 0;
+        } catch (Exception $e) {
+            app(\App\Exceptions\Handler::class)->report($e);
+            $response['result'] = 'failure';
+            $response['msg'] = $e->getMessage();
+        }
+
+        return response()->json($response);
+    }
+
+    public function delete_all_materials(Request $request, $id)
+    {
+        $material_id = $request->service_id;
+        try {
+            $allmaterial = MateriBOQBulk::where('nv_id', $id)->where('material_id', $material_id);
+            $count = $allmaterial->count(); // Count the number of records affected
+
+            if ($count > 0) {
+                $allmaterial->delete();
+                $response['result'] = 'success';
+                $response['msg'] = 'All materials related to this nv is deleted.';
+            } else {
+                $response['result'] = 'failure';
+                $response['msg'] = 'No materials found for nv_id ' . $id . '.';
+            }
+        } catch (Exception $e) {
+            app(\App\Exceptions\Handler::class)->report($e);
+            $response['result'] = 'failure';
+            $response['msg'] = $e->getMessage();
+        }
+
+        return response()->json($response);
+    }
+
+    public function delete_all_service(Request $request, $id)
+    {
+        $service_id = $request->service_id;
+        try {
+            $allservices = ServiceBOQBulk::where('nv_id', $id)->where('service_id', $service_id);
+            $count = $allservices->count(); // Count the number of records affected
+
+            if ($count > 0) {
+                $allservices->delete();
+                $response['result'] = 'success';
+                $response['msg'] = 'All services related to this nv is deleted.';
+            } else {
+                $response['result'] = 'failure';
+                $response['msg'] = 'No services found for nv_id ' . $id . '.';
+            }
+        } catch (Exception $e) {
+            app(\App\Exceptions\Handler::class)->report($e);
+            $response['result'] = 'failure';
+            $response['msg'] = $e->getMessage();
+        }
+
+        return response()->json($response);
+    }
+
+    public function delete_service($id)
+    {
+        try {
+            $service = ServiceBOQBulk::findOrFail($id);
+            $data = ServiceBOQBulk::where('id', $id)->select('amount')->get();
+            $ser_amount = $data[0]->amount;
+            $service->delete();
+
+
+            $response['result'] = 'success';
+            $response['msg'] = 'Service Deleted';
+            $response['response'] = $ser_amount;
+        } catch (Exception $e) {
+            app(\App\Exceptions\Handler::class)->report($e);
+            $response['result'] = 'failure';
+            $response['msg'] = $e->getMessage();
+        }
+
+        return response()->json($response);
+    }
+
+    //ayu
+    public function fetchMaterialData(Request $request)
+    {
+        // dd('hi');
+        $key = $request->key;
+        $check_data = MateriBOQBulk::where('material_code', 'like', $key . '%')->select(
+            'material_code',
+            'material_short_text',
+            'uom',
+            'rate',
+            'quantity',
+            'amount',
+            'april',
+            'may',
+            'june',
+            'july',
+            'august',
+            'september',
+            'oct',
+            'nov',
+            'dec',
+            'jan',
+            'feb',
+            'march'
+        )->first();
+        // dd($check_data);
+        $response = array();
+
+        return response()->json($check_data);
+    }
+    public function edit_service($id)
+    {
+        //  $company = Division::select('id', 'name')->get();
+        $data = ServiceBOQBulk::where(['id' => $id])->first();
+        $nv_service = NeedValidation::where('id', $data->nv_id)->first();
+        $serviceCodes = ServiceBOQBulk::pluck('service_code')->toArray();
+        $escapedServiceCodes = [];
+
+        foreach ($serviceCodes as $code) {
+            if (is_string($code)) {
+                $escapedServiceCodes[] = htmlspecialchars($code);
+            } else {
+                $escapedServiceCodes[] = $code;
+            }
+        }
+
+        // return view('admin.nvMaterial.edit_service')->with(['data' => $data]);
+        return view('admin.nvMaterial.edit_service', compact('data', 'serviceCodes', 'nv_service'));
+    }
+    public function fetchServiceData(Request $request)
+    {
+        // dd('hi');
+        $key = $request->key;
+        $check_data = ServiceBOQBulk::where('service_code', 'like', $key . '%')->select(
+            'service_code',
+            'description',
+            'uom',
+            'rate',
+            'qty',
+            'amount'
+        )->first();
+
+        $response = array();
+
+        return response()->json($check_data);
+    }
+
+    public function update_material(Request $request)
+    {
+        $data = MateriBOQBulk::find($request->mt_id);
+        if (!$data) {
+            return Redirect::back()->withErrors(['error' => 'Material BOQ record not found.']);
+        }
+        $data['file'] = $this->uploadFile($request, 'file', $request->mt_id);
+        $data->update([
+
+            'material_code' => $request->input('material_code'),
+            'rate_reference' => $request->input('rate_reference'),
+            'uom' => $request->input('uom'),
+            'material_short_text' => $request->input('material_short_text'),
+            'quantity' => $request->input('quantity'),
+            'rate' => $request->input('rate'),
+            'amount' => $request->input('amount'),
+            'april1' => $request->input('april'),
+            'may1' => $request->input('may'),
+            'june1' => $request->input('june'),
+            'july1' => $request->input('july'),
+            'august1' => $request->input('august'),
+            'september1' => $request->input('september'),
+            'oct1' => $request->input('oct'),
+            'nov1' => $request->input('nov'),
+            'dec1' => $request->input('dec'),
+            'jan1' => $request->input('jan'),
+            'feb1' => $request->input('feb'),
+            'march1' => $request->input('march'),
+            'april2' => $request->input('april2'),
+            'may2' => $request->input('may2'),
+            'june2' => $request->input('june2'),
+            'july2' => $request->input('july2'),
+            'august2' => $request->input('august2'),
+            'september2' => $request->input('september2'),
+            'oct2' => $request->input('oct2'),
+            'nov2' => $request->input('nov2'),
+            'dec2' => $request->input('dec2'),
+            'jan2' => $request->input('jan2'),
+            'feb2' => $request->input('feb2'),
+            'march2' => $request->input('march2'),
+            'april3' => $request->input('april3'),
+            'may3' => $request->input('may3'),
+            'june3' => $request->input('june3'),
+            'july3' => $request->input('july3'),
+            'august3' => $request->input('august3'),
+            'september3' => $request->input('september3'),
+            'oct3' => $request->input('oct3'),
+            'nov3' => $request->input('nov3'),
+            'dec3' => $request->input('dec3'),
+            'jan3' => $request->input('jan3'),
+            'feb3' => $request->input('feb3'),
+            'march3' => $request->input('march3'),
+            //  'file'=> $file,            
+        ]);
+
+
+        $url = session('current_url') . "#materialboq";
+        return Redirect::to($url)->with('success1', 'MaterialBOQ Updated Successfully!');;
+        // Session::flash('message', 'MaterialBOQ updated successfully!');
+        // return redirect()->back()->with('success', 'MaterialBOQ updated successfully!');
+    }
+    public function update_service(Request $request)
+    {
+        $data = ServiceBOQBulk::find($request->s_id);
+        if (!$data) {
+            return Redirect::back()->withErrors(['error' => 'Service BOQ record not found.']);
+        }
+        $data['file'] = $this->uploadFile($request, 'file', $request->s_id);
+        $data->update([
+            'service_code' => $request->input('service_code'),
+            'uom' => $request->input('uom'),
+            'description' => $request->input('description'),
+            'qty' => $request->input('qty'),
+            'rate' => $request->input('rate'),
+            'amount' => $request->input('amount'),
+
+            //  'file'=> $file,
+
+        ]);
+        $current_url = session('current_url');
+        if (strpos($current_url, 'nv_material/create') !== false) {
+            $url = session('current_url') . "#serviceboq";
+        } else {
+            $url = session('current_url') . "#serviceboq1";
+        }
+        return Redirect::to($url)->with('success2', 'ServiceBOQ Updated Successfully!');;
+
+        // Session::flash('message', 'ServiceBOQ updated successfully!');
+        // return redirect()->back()->with('success', 'ServiceBOQ updated successfully!');
+    }
+
+    public function store_nv_material(Request $request)
+    {
+        // dd($request->all());
+        $nv = NeedValidation::where('id', $request['nv_id'])->first();
+        $total_ser_amo = $request->total_ser_amo;
+        $total_mat_mat = $request->total_mat_mat;
+
+        $total_budget_both = preg_replace('/[^\d.]/', '', $request->total_budget_both);
+        $total_budget_service = preg_replace('/[^\d.]/', '', $request->total_budget_service);
+        $ser_budget_avl = preg_replace('/[^\d.]/', '', $request->ser_budget_avl);
+        //  $total_ser_amo = preg_replace('/[^\d.]/', '', $request->total_ser_amo);
+        //  $total_mat_mat = preg_replace('/[^\d.]/', '', $request->total_mat_mat);
+        $budget_avl = preg_replace('/[^\d.]/', '', $request->budget_avl);
+        try {
+            $request_input = $request->except('_token');
+            $status = $request->status;
+            $draft = $request->draft;
+            $just_Prop = $request->just_Prop;
+            $broad_just = $request->broad_just;
+            $background = $request->background;
+
+            $approved_nv =  NeedValidation::where('id', $request_input['nv_id'])->first();
+
+            if ($approved_nv->budgetary_provision == 'Approved') {
+                if (!empty($request_input['tax1'])) {
+                    $total_mat_mat = $request_input['total_mat_mat'] + (($request_input['total_mat_mat'] * $request_input['tax1']) / 100) ?? null;
+                } else {
+                    $total_mat_mat = $request_input['total_mat_mat'] ?? null;
+                }
+                if (!empty($request_input['tax_amount2'])) {
+                    $total_mat_mat2 = $request_input['total_mat_mat2'] + (($request_input['total_mat_mat2'] * $request_input['tax_amount2']) / 100) ?? null;
+                } else {
+                    $total_mat_mat2 = $request_input['total_mat_mat2'] ?? null;
+                }
+
+                if (!empty($request_input['tax_amount3'])) {
+                    $total_mat_mat3 = $request_input['total_mat_mat3'] + (($request_input['total_mat_mat3'] * $request_input['tax_amount3']) / 100) ?? null;
+                } else {
+                    $total_mat_mat3 = $request_input['total_mat_mat3'] ?? null;
+                }
+            }
+
+            // dd($status);
+            // $request_input['status'] = isset($request_input['status']) ? $request_input['status'] : 0;
+            if ($status == "submit_nv") {
+                if (empty($request['service_id'])) {
+
+                    $rules = [
+                        // 'dop' => 'required|numeric|unique:tbl_material,dop,except,id',
+                        // 'short_code' => 'required|string|max:10|unique:divisions,short_code,except,id',
+                    ];
+
+                    $messages = [
+                        // 'dop.unique' => 'This DOP ref no has already been taken',
+                        // 'name.max' => 'Division name should not be more than 50 characters',
+                        // 'short_code.required' => 'Please enter division short code',
+                        // 'short_code.max' => 'short code should not be more than 10 characters',
+
+                    ];
+                    $validator = Validator::make($request_input, $rules, $messages);
+                    if ($validator->fails()) {
+                        $response['msg'] = $validator->errors()->toArray();
+                        $response['result'] = 'error';
+                    } else {
+                        // dd(implode(',', $request_input['imp_plan']));
+
+                        $nvmaterial = NVMaterial::create([
+                            'dept_id' => $request_input['dept_id'],
+                            'nv_id' => $request_input['nv_id'],
+                            'company_id' => $request_input['company_id'],
+                            'user_id' => \Auth::user()->id,
+                            'dop' => $request_input['dop'],
+                            'proposal_name' => $request_input['proposal_name'],
+                            'background' =>  $background,
+                            'just_Prop' =>  $just_Prop,
+                            'broad_just' => $broad_just,
+                            'draft' =>  $draft,
+
+                            'cost_trend_year1' => implode(',', $request_input['cost_trend_year1']),
+                            'cost_trend_year2' => implode(',', $request_input['cost_trend_year2']),
+                            'cost_trend_year3' => implode(',', $request_input['cost_trend_year3']),
+
+                            'benefit' => $request_input['benefit'],
+                            'implements_years' => $request_input['implements_years'],
+                            'imp_to' => implode(',', $request_input['imp_to']),
+                            'imp_from' => implode(',', $request_input['imp_from']),
+                            'imp_plan' => implode('.,', $request_input['imp_plan']),
+                            //'prop_type' => $request_input['prop_type'],
+                            'worktype' => $request_input['worktype'],
+                            'scheme_no' => implode(',', $request_input['scheme_no']),
+                            'scheme_des' => implode(',', $request_input['scheme_des']),
+                            'scheme_type' => $request_input['scheme_type'],
+                            'derc_ref_no' => $request_input['derc_ref_no'] ?? null,
+                            'derc_approval' => $request_input['derc_approval'] ?? null,
+                            'derc_app_date' => $request_input['derc_app_date'] ?? null,
+
+
+
+                            'budget_avl' => $budget_avl,
+                            'ptr_mva' => $request_input['ptr_mva'] ?? null,
+                            'dt_mva' => $request_input['dt_mva'] ?? null,
+                            'ehv_line' => $request_input['ehv_line'] ?? null,
+                            'tax_amount2' => $request_input['tax_amount2'] ?? null,
+                            'tax_amount3' => $request_input['tax_amount3'] ?? null,
+                            'total_mat_mat' => $total_mat_mat ?? null,
+                            'total_mat_mat2' => $total_mat_mat2 ?? null,
+                            'total_mat_mat3' => $total_mat_mat3 ?? null,
+                            'tax1' => $request_input['tax1'] ?? null,
+                            'tax2' => $request_input['tax2'] ?? null,
+                            'tax3' => $request_input['tax3'] ?? null,
+                            'tax4' => $request_input['tax4'] ?? null,
+                            'tax5' => $request_input['tax5'] ?? null,
+                            'tax6' => $request_input['tax6'] ?? null,
+                            'ht_line' => $request_input['ht_line'] ?? null,
+                            'lt_line' => $request_input['lt_line'] ?? null,
+                            'root_cause_analysis' => $request_input['root_cause_analysis'],
+                            'cause_analysis' => $request_input['cause_analysis'],
+                            'special_remarks' => $request_input['special_remarks'],
+                            // 'total_budget_material' => $request_input['total_budget_material'],
+                            'prop_number' => $request_input['prop_number'] ?? null,
+                            'mode_award' => $request_input['mode_award'],
+                            'past_3_year_actual_cost_fy' => implode(',', $request_input['past_3_year_actual_cost_fy']),
+                            'past_3_year_actual_cost' => implode(',', $request_input['past_3_year_actual_cost']),
+                            'past_3_year_actual_cost_service' => implode(',', $request_input['past_3_year_actual_cost_service']),
+                            'past_practice_follow' => $request_input['past_practice_follow'],
+                            'amc_prop_start_date' => $request_input['amc_prop_start_date'],
+                            'amc_prop_end_date' => $request_input['amc_prop_end_date'],
+                            'estimate_amount_of_service' => $request_input['estimate_amount_of_service'],
+                            'estimate_amount_of_service_civil' => $request_input['estimate_amount_of_service_civil'],
+                            'estimate_amount_of_rr_charge' => $request_input['estimate_amount_of_rr_charge'],
+                            'estimate_amount_other' => $request_input['estimate_amount_other'],
+                            'total_budget_service' => $total_budget_service,
+                            'add_budget' => $request_input['add_budget'] ?? null,
+                            'approved_budget' => $request_input['approved_budget'] ?? null,
+                            'total_budget_both' => $total_budget_both,
+                            'cap_add' => $request_input['cars-first'] ?? null,
+                            'ser_rel_nv' => $request_input['cars'],
+                            'material_amount' => implode(',', $request_input['material_amount']),
+                            'material_description' => implode(',', $request_input['material_description']),
+                            'service_amount' => implode(',', $request_input['service_amount']),
+                            'service_description' => implode(',', $request_input['service_description']),
+                            'new_product_text' => $request_input['new_product_text'],
+                            'quant_just_text' => $request_input['quant_just_text'],
+
+
+                        ]);
+
+
+                        $nv = NeedValidation::where('id', $request_input['nv_id'])->first();
+                        if ($nv->budgetary_provision == "Approved") {
+                            $bud_from_log = budget::where('dept_id', $request_input['dept_id'])->where('budget_type', $nv->budget_type)->where('fiscal_year', $nv->fiscal_year)->first('total_budget');
+                            $tot = $bud_from_log->total_budget == null ? 0 : $bud_from_log->total_budget;
+                            $budget = budget::where('dept_id', $nv->department_id)->where('budget_type', $nv->budget_type)->where('fiscal_year', $nv->fiscal_year)->update([
+                                'total_budget' => $tot + preg_replace('/[^\d.]/', '', $request->total_budget_both) - $request_input['add_budget'],
+                                'service_id' => $nv->service_id,
+                                'nv_id' => $request_input['nv_id'],
+                            ]);
+                            if (!empty($request_input['implements_years'])) {
+                                $Impyear = explode('-', $nv->fiscal_year);
+                                $nextStartYear1 = $Impyear[0] + 1;
+                                $nextEndYear1 = $Impyear[1] + 1;
+                                $nextStartYear2 = $Impyear[0] + 2;
+                                $nextEndYear2 = $Impyear[1] + 2;
+                                $nextYear1 = "{$nextStartYear1}-{$nextEndYear1}";
+                                $nextYear2 = "{$nextStartYear2}-{$nextEndYear2}";
+
+                                // if(!empty($total_mat_mat2)){
+                                //     $bud_from1 = budget::where('dept_id', $request_input['dept_id'])->where('budget_type',$nv->budget_type)->where('fiscal_year',$nextYear1)->first();
+                                //     if($bud_from1){
+                                //         $tot = $bud_from1->total_budget == null ? 0 : $bud_from1->total_budget;
+                                //         $budget =budget::where('dept_id',$nv->department_id)->where('budget_type',$nv->budget_type)->where('fiscal_year',$nextYear1)->update([
+                                //             'total_budget' => $tot + ($total_mat_mat2)
+                                //         ]);
+                                //     }
+                                // }
+
+                                // if(!empty($total_mat_mat3)){
+                                //     $bud_from2 = budget::where('dept_id', $request_input['dept_id'])->where('budget_type',$nv->budget_type)->where('fiscal_year',$nextYear2)->first();
+                                //     if($bud_from2){
+                                //         $tot = $bud_from2->total_budget == null ? 0 : $bud_from2->total_budget;
+                                //         $budget =budget::where('dept_id',$nv->department_id)->where('budget_type',$nv->budget_type)->where('fiscal_year',$nextYear2)->update([
+                                //             'total_budget' => $tot + ($total_mat_mat3)
+                                //         ]);
+                                //     }
+                                // }
+
+                                if ($nv->budget_type == "CAPEX") {
+                                    $provision_budget2 = CapexBudget::where('department_id', $nv->department_id)->where('fiscal_year', $nextYear1)->first();
+                                    $provision_budget3 = CapexBudget::where('department_id', $nv->department_id)->where('fiscal_year', $nextYear2)->first();
+
+                                    if ($provision_budget2) {
+                                        if (!empty($total_mat_mat2)) {
+                                            if ($nextYear1 == $provision_budget2->fiscal_year) {
+                                                if ($provision_budget2->provision_budget == null) {
+                                                    $capex_budget_approve =  CapexBudget::where('department_id', $nv->department_id)->where('fiscal_year', $provision_budget2->fiscal_year)->update([
+                                                        'provision_budget' => $total_mat_mat2
+                                                    ]);
+                                                } else {
+                                                    $capexbudget =  $provision_budget2->provision_budget;
+                                                    $total = $capexbudget + $total_mat_mat2;
+                                                    $capex_budget_approve =  CapexBudget::where('department_id', $nv->department_id)->where('fiscal_year', $provision_budget2->fiscal_year)->update([
+                                                        'provision_budget' => $total
+                                                    ]);
+                                                }
+                                            }
+                                        }
+                                    }
+                                    if ($provision_budget3) {
+                                        if (!empty($total_mat_mat3)) {
+                                            if ($nextYear2 == $provision_budget3->fiscal_year) {
+                                                if ($provision_budget3->provision_budget == null) {
+                                                    $capex_budget_approve =  CapexBudget::where('department_id', $nv->department_id)->where('fiscal_year', $provision_budget3->fiscal_year)->update([
+                                                        'provision_budget' => $total_mat_mat3
+                                                    ]);
+                                                } else {
+                                                    $capexbudget =  $provision_budget3->provision_budget;
+                                                    $total = $capexbudget + $total_mat_mat3;
+                                                    $capex_budget_approve =  CapexBudget::where('department_id', $nv->department_id)->where('fiscal_year', $provision_budget3->fiscal_year)->update([
+                                                        'provision_budget' => $total
+                                                    ]);
+                                                }
+                                            }
+                                        }
+                                    }
+                                } elseif ($nv->budget_type == "OPEX") {
+                                    $provision_budget2 = OpexBudget::where('department_id', $nv->department_id)->where('fiscal_year', $nextYear1)->first();
+                                    $provision_budget3 = OpexBudget::where('department_id', $nv->department_id)->where('fiscal_year', $nextYear2)->first();
+
+                                    if ($provision_budget2) {
+                                        if (!empty($total_mat_mat2)) {
+                                            if ($nextYear1 == $provision_budget2->fiscal_year) {
+                                                if ($provision_budget2->provision_budget == null) {
+                                                    $capex_budget_approve =  OpexBudget::where('department_id', $nv->department_id)->where('fiscal_year', $provision_budget2->fiscal_year)->update([
+                                                        'provision_budget' => $total_mat_mat2
+                                                    ]);
+                                                } else {
+                                                    $OpexBudget =  $provision_budget2->provision_budget;
+                                                    $total = $OpexBudget + $total_mat_mat2;
+                                                    $capex_budget_approve =  OpexBudget::where('department_id', $nv->department_id)->where('fiscal_year', $provision_budget2->fiscal_year)->update([
+                                                        'provision_budget' => $total
+                                                    ]);
+                                                }
+                                            }
+                                        }
+                                    }
+                                    if ($provision_budget3) {
+                                        if (!empty($total_mat_mat3)) {
+                                            if ($nextYear2 == $provision_budget3->fiscal_year) {
+                                                if ($provision_budget3->provision_budget == null) {
+                                                    $capex_budget_approve =  OpexBudget::where('department_id', $nv->department_id)->where('fiscal_year', $provision_budget3->fiscal_year)->update([
+                                                        'provision_budget' => $total_mat_mat3
+                                                    ]);
+                                                } else {
+                                                    $OpexBudget =  $provision_budget3->provision_budget;
+                                                    $total = $OpexBudget + $total_mat_mat3;
+                                                    $capex_budget_approve =  OpexBudget::where('department_id', $nv->department_id)->where('fiscal_year', $provision_budget3->fiscal_year)->update([
+                                                        'provision_budget' => $total
+                                                    ]);
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+
+                        $count = Nvsericestatus::where('nv_id', $request_input['nv_id'])->count();
+                        $version_nv = ($count >= 1) ? $request_input['nv_id'] . '-v' . ($count + 1) : (string) $request_input['nv_id'];
+                        $nvmaterialstatus = new Nvsericestatus();
+                        $nvmaterialstatus->material_id = $nvmaterial->id;
+                        $nvmaterialstatus->nv_id = $request_input['nv_id'];
+                        $nvmaterialstatus->company_id = $request_input['company_id'];
+                        $nvmaterialstatus->draft = $draft;
+                        $nvmaterialstatus->version_nv = $version_nv;
+
+                        if ($nv->budget_type == "CAPEX") {
+                            $nvmaterialstatus->derc_info = '1';
+                        } else if ($nv->budget_type == "OPEX") {
+                            $nvmaterialstatus->derc_info = !empty($request_input['prop_number']) ? '1' : '0';
+                        }
+
+                        $nvmaterialstatus->save();
+
+                        NeedValidation::where('id', $request_input['nv_id'])
+                            ->update(['proposal_type' => $request_input['proposal_type']]);
+
+                        if (!empty($nvmaterial)) {
+                            $serviceId = $nvmaterial->id;
+                            $data = [];
+
+                            $data['service_id'] = $serviceId;
+
+                            $fileFields = [
+                                'previous_work_order',
+                                'derc_stakeholder_approvals',
+                                'consumption_details',
+                                'vend_quatation',
+                                'photo_product',
+                                'material_procurement',
+                                'budget_for_both',
+                                'others', // assuming 'others' field supports multiple files
+                                'new_product',
+                                'cm_rate_ref',
+                                'vendor_quatation',
+                                'last_purchase_price',
+                                'user_estimation',
+                                'previous_wo_rc',
+                                'cost_calculation_for_service',
+                                'quant_just',
+                                'special_attch',
+                                'just_prop_upload',
+                            ];
+
+                            foreach ($fileFields as $fieldName) {
+                                if ($request->hasFile($fieldName)) {
+                                    $files = $request->file($fieldName);
+
+                                    if (is_array($files)) {
+                                        // Handle multiple files for 'others' field
+                                        $fileNames = [];
+
+                                        foreach ($files as $file) {
+                                            $newFileName = $file->getClientOriginalName();
+                                            $filePath = public_path('materials-doc/' . $newFileName);
+
+                                            // Check if a file with the same name already exists
+                                            if (!File::exists($filePath)) {
+                                                $file->move(public_path('materials-doc'), $newFileName);
+                                            }
+
+                                            $fileNames[] = $newFileName;
+                                        }
+
+                                        $data[$fieldName] = implode(',', $fileNames); // Convert array to string
+                                    } else {
+                                        // Handle single file for other fields
+                                        $file = $files;
+                                        $newFileName = $file->getClientOriginalName();
+                                        $filePath = public_path('materials-doc/' . $newFileName);
+
+                                        // Check if a file with the same name already exists
+                                        if (!File::exists($filePath)) {
+                                            $file->move(public_path('materials-doc'), $newFileName);
+                                        }
+
+                                        $data[$fieldName] = $newFileName;
+                                    }
+                                }
+                            }
+
+                            $data['created_by'] = \Auth::user()->id;
+                            // dd($data);
+                            $document = MaterialDoc::create($data);
+                        }
+                        $response['result'] = 'success';
+                        $response['msg'] = 'NV Material Created';
+                        if (Auth::user()->role_id == 9) {
+                            $nv_id = $request->nv_id;
+                            $user_id = Auth::user()->id;
+                            $employees = Employee::where("user_id", $user_id)->first();
+                            $departmentIds = explode(',', $employees->department_id);
+                            $departments = Department::whereIn("id", $departmentIds)->get();
+
+                            // $depart = Department::where("id",$employees->department_id)->first();
+                            // $nv_type = NeedValidation::where('user_id', $user_id)->where('id', $nv_id)->first();
+                            $initiated_date = NVMaterial::where('user_id', $user_id)->where('nv_id', $nv_id)->first();
+                            $initiated_by =  Employee::where('user_id', $initiated_date->user_id)->first();
+
+                            $ini_date = NVMaterial::where('user_id', $user_id)->where('nv_id', $nv_id)->first();
+                            $ini_by =  Employee::where('user_id', $ini_date->user_id)->first();
+
+                            $tble_material = NVMaterial::where('nv_id', $nv_id)->first();
+                            $user = User::select('email', 'name', 'id')->where('id', $tble_material->user_id)->first();
+                            $nv_type = NeedValidation::where('id', $nv_id)->first();
+                            $depart = Department::where("id",  $nv_type->department_id)->first();
+
+                            foreach ($departments as $department) {
+                                $hod = $department->dep_hod;
+                                $rv1 = $department->dep_rew1;
+                                $rv2 = $department->dep_rew2;
+                                $rv3 = $department->dep_rew3;
+                                $rv4 = $department->dep_rew4;
+                            }
+                            if (!empty($rv1)) {
+                                $emp_rv1 = Employee::where('user_id', $department->dep_rew1)->first();
+                            } elseif (!empty($rv2)) {
+                                $emp_rv1 = Employee::where('user_id', $department->dep_rew2)->first();
+                            } elseif (!empty($rv3)) {
+                                $emp_rv1 = Employee::where('user_id', $department->dep_rew3)->first();
+                            } elseif (!empty($rv4)) {
+                                $emp_rv1 = Employee::where('user_id', $department->dep_rew4)->first();
+                            } else {
+                                $emp_rv1 = Employee::where('user_id', $department->dep_hod)->first();
+                            }
+                            $to_emails = $emp_rv1->email;
+
+
+                            $p1 = "You have a new request that requires your approval:";
+                            $p2 = "Please review the request and take appropriate action.";
+                            $remark = "";
+                            //  send mail 
+                            Mail::send('emailtemp.doc_mail', ['username' => 'user', 'initiated_date' => $initiated_date, 'initiated_by' => $initiated_by, 'ini_date' => $ini_date, 'ini_by' => $ini_by, 'p1' => $p1, 'p2' => $p2, 'nv_type' => $nv_type, 'remark' => $remark ?? '', 'department' => $depart], function ($message) use ($to_emails) {
+                                $message->from(env('MAIL_FROM_ADDRESS'), 'NV');
+                                $message->to($to_emails);
+                                // //$message->cc('raushan@rediansoftware.com');
+                                $message->subject("Need Validation Status Update : Seeking your validation");
+                            });
+
+                            $serviceType = ($nv_type->service_id == 1) ? 'Material' : 'Service';
+                            $subject = "Your NV (NV/{$nv_type->budget_type}/{$nv_type->fiscal_year}/{$depart->name}/{$serviceType}/{$nv_type->id}) has been submitted";
+                            $to_emails = $user->email;
+                            Mail::send('emailtemp.nvsubmit_mail', ['user' => $user, 'initiated_date' => $initiated_date, 'initiated_by' => $initiated_by, 'ini_date' => $ini_date, 'ini_by' => $ini_by, 'p1' => $p1, 'p2' => $p2, 'nv_type' => $nv_type, 'remark' => $remark ?? '', 'department' => $depart, 'status' => $status,], function ($message) use ($to_emails, $subject) {
+                                $message->from(env('MAIL_FROM_ADDRESS'), 'NV');
+                                $message->to($to_emails);
+                                // //$message->cc('raushan@rediansoftware.com');
+                                $message->subject($subject);
+                            });
+                        }
+                    }
+                } else {
+                    $service_id = $request['service_id'];
+                    $nvm = NVMaterial::find($service_id);
+                    $nv_status = Nvsericestatus::where('material_id', $nvm->id)->first();
+                    $nv_stage = DB::table('capex_workflows_status')->where('material_id', $nvm->id)->get();
+
+                    $allStagesZero = true;
+                    $anyStageTwo = false;
+
+                    if ($nv_stage->count()) {
+                        foreach ($nv_stage as $stage) {
+                            if ($stage->nv_stage_status != 0) {
+                                $allStagesZero = false;
+                            }
+                            if ($stage->nv_stage_status == 2) {
+                                $anyStageTwo = true;
+                            }
+                        }
+                    }
+
+                    if (
+                        $nv_status->rv1_status == 0 &&
+                        $nv_status->rv2_status == 0 &&
+                        $nv_status->rv3_status == 0 &&
+                        $nv_status->rv4_status == 0 &&
+                        $nv_status->hod_status == 0 &&
+                        $nv_status->groupcio_status == 0 &&
+                        $allStagesZero
+                    ) {
+
+                        NVMaterial::find($service_id)->update([
+                            'dept_id' => $request_input['dept_id'],
+                            'nv_id' => $request_input['nv_id'],
+                            'company_id' => $request_input['company_id'],
+                            'user_id' => \Auth::user()->id,
+                            'dop' => $request_input['dop'],
+                            'proposal_name' => $request_input['proposal_name'],
+                            'background' =>  $background,
+                            'just_Prop' =>  $just_Prop,
+                            'broad_just' => $broad_just,
+                            'draft' =>  $draft,
+                            'cost_trend_year1' => implode(',', $request_input['cost_trend_year1']),
+                            'cost_trend_year2' => implode(',', $request_input['cost_trend_year2']),
+                            'cost_trend_year3' => implode(',', $request_input['cost_trend_year3']),
+
+                            'benefit' => $request_input['benefit'],
+                            'implements_years' => $request_input['implements_years'],
+                            'imp_to' => implode(',', $request_input['imp_to']),
+                            'imp_from' => implode(',', $request_input['imp_from']),
+                            'imp_plan' => implode('.,', $request_input['imp_plan']),
+                            //  'prop_type' => $request_input['prop_type'],
+                            'worktype' => $request_input['worktype'],
+                            'scheme_no' => implode(',', $request_input['scheme_no']),
+                            'scheme_des' => implode(',', $request_input['scheme_des']),
+                            'scheme_type' => $request_input['scheme_type'],
+                            'derc_ref_no' => $request_input['derc_ref_no'] ?? null,
+                            'derc_approval' => $request_input['derc_approval'] ?? null,
+                            'derc_app_date' => $request_input['derc_app_date'] ?? null,
+
+
+                            'budget_avl' => $budget_avl,
+                            'ptr_mva' => $request_input['ptr_mva'] ?? null,
+                            'dt_mva' => $request_input['dt_mva'] ?? null,
+                            'ehv_line' => $request_input['ehv_line'] ?? null,
+                            'tax_amount2' => $request_input['tax_amount2'] ?? null,
+                            'tax_amount3' => $request_input['tax_amount3'] ?? null,
+                            'total_mat_mat' => $total_mat_mat ?? null,
+                            'total_mat_mat2' => $total_mat_mat2 ?? null,
+                            'total_mat_mat3' => $total_mat_mat3 ?? null,
+                            'tax1' => $request_input['tax1'] ?? null,
+                            'tax2' => $request_input['tax2'] ?? null,
+                            'tax3' => $request_input['tax3'] ?? null,
+                            'tax4' => $request_input['tax4'] ?? null,
+                            'tax5' => $request_input['tax5'] ?? null,
+                            'tax6' => $request_input['tax6'] ?? null,
+                            'ht_line' => $request_input['ht_line'] ?? null,
+                            'lt_line' => $request_input['lt_line'] ?? null,
+                            'root_cause_analysis' => $request_input['root_cause_analysis'],
+                            'cause_analysis' => $request_input['cause_analysis'],
+                            'special_remarks' => $request_input['special_remarks'],
+                            // 'total_budget_material' => $request_input['total_budget_material'],
+                            'prop_number' => $request_input['prop_number'] ?? null,
+                            'mode_award' => $request_input['mode_award'],
+                            'past_3_year_actual_cost_fy' => implode(',', $request_input['past_3_year_actual_cost_fy']),
+                            'past_3_year_actual_cost' => implode(',', $request_input['past_3_year_actual_cost']),
+                            'past_3_year_actual_cost_service' => implode(',', $request_input['past_3_year_actual_cost_service']),
+                            'past_practice_follow' => $request_input['past_practice_follow'],
+                            'amc_prop_start_date' => $request_input['amc_prop_start_date'],
+                            'amc_prop_end_date' => $request_input['amc_prop_end_date'],
+                            'estimate_amount_of_service' => $request_input['estimate_amount_of_service'],
+                            'estimate_amount_of_service_civil' => $request_input['estimate_amount_of_service_civil'],
+                            'estimate_amount_of_rr_charge' => $request_input['estimate_amount_of_rr_charge'],
+                            'estimate_amount_other' => $request_input['estimate_amount_other'],
+                            'total_budget_service' => $total_budget_service,
+                            'add_budget' => $request_input['add_budget'] ?? null,
+                            'approved_budget' => $request_input['approved_budget'] ?? null,
+                            'total_budget_both' => $total_budget_both,
+                            'cap_add' => $request_input['cars-first'] ?? null,
+                            'ser_rel_nv' => $request_input['cars'],
+                            'material_amount' => implode(',', $request_input['material_amount']),
+                            'material_description' => implode(',', $request_input['material_description']),
+                            'service_amount' => implode(',', $request_input['service_amount']),
+                            'service_description' => implode(',', $request_input['service_description']),
+                            'new_product_text' => $request_input['new_product_text'],
+                            'quant_just_text' => $request_input['quant_just_text'],
+
+                        ]);
+                        // dd( $nv_status->material_id);
+                        // Nvsericestatus::find($mat_id )->update([
+                        //     'draft' =>  1,
+                        //    ]);
+
+                        $nv = NeedValidation::where('id', $request_input['nv_id'])->first();
+                        if ($nv->budgetary_provision == "Approved") {
+                            $bud_from_log = budget::where('dept_id', $request_input['dept_id'])->where('budget_type', $nv->budget_type)->where('fiscal_year', $nv->fiscal_year)->first('total_budget');
+                            $tot = $bud_from_log->total_budget == null ? 0 : $bud_from_log->total_budget;
+                            $budget = budget::where('dept_id', $nv->department_id)->where('budget_type', $nv->budget_type)->where('fiscal_year', $nv->fiscal_year)->update([
+                                'total_budget' => $tot + preg_replace('/[^\d.]/', '', $request->total_budget_both) - $request_input['add_budget'],
+                                'service_id' => $nv->service_id,
+                                'nv_id' => $request_input['nv_id'],
+                            ]);
+                            if (!empty($request_input['implements_years'])) {
+                                $Impyear = explode('-', $nv->fiscal_year);
+                                $nextStartYear1 = $Impyear[0] + 1;
+                                $nextEndYear1 = $Impyear[1] + 1;
+                                $nextStartYear2 = $Impyear[0] + 2;
+                                $nextEndYear2 = $Impyear[1] + 2;
+                                $nextYear1 = "{$nextStartYear1}-{$nextEndYear1}";
+                                $nextYear2 = "{$nextStartYear2}-{$nextEndYear2}";
+
+                                // if(!empty($total_mat_mat2)){
+                                //     $bud_from1 = budget::where('dept_id', $request_input['dept_id'])->where('budget_type',$nv->budget_type)->where('fiscal_year',$nextYear1)->first();
+                                //     if($bud_from1){
+                                //         $tot = $bud_from1->total_budget == null ? 0 : $bud_from1->total_budget;
+                                //         $budget =budget::where('dept_id',$nv->department_id)->where('budget_type',$nv->budget_type)->where('fiscal_year',$nextYear1)->update([
+                                //             'total_budget' => $tot + ($total_mat_mat2)
+                                //         ]);
+                                //     }
+                                // }
+
+                                // if(!empty($total_mat_mat3)){
+                                //     $bud_from2 = budget::where('dept_id', $request_input['dept_id'])->where('budget_type',$nv->budget_type)->where('fiscal_year',$nextYear2)->first();
+                                //     if($bud_from2){
+                                //         $tot = $bud_from2->total_budget == null ? 0 : $bud_from2->total_budget;
+                                //         $budget =budget::where('dept_id',$nv->department_id)->where('budget_type',$nv->budget_type)->where('fiscal_year',$nextYear2)->update([
+                                //             'total_budget' => $tot + ($total_mat_mat3)
+                                //         ]);
+                                //     }
+                                // }
+
+                                if ($nv->budget_type == "CAPEX") {
+                                    $provision_budget2 = CapexBudget::where('department_id', $nv->department_id)->where('fiscal_year', $nextYear1)->first();
+                                    $provision_budget3 = CapexBudget::where('department_id', $nv->department_id)->where('fiscal_year', $nextYear2)->first();
+
+                                    if ($provision_budget2) {
+                                        if (!empty($total_mat_mat2)) {
+                                            if ($nextYear1 == $provision_budget2->fiscal_year) {
+                                                if ($provision_budget2->provision_budget == null) {
+                                                    $capex_budget_approve =  CapexBudget::where('department_id', $nv->department_id)->where('fiscal_year', $provision_budget2->fiscal_year)->update([
+                                                        'provision_budget' => $total_mat_mat2
+                                                    ]);
+                                                } else {
+                                                    $capexbudget =  $provision_budget2->provision_budget;
+                                                    $total = $capexbudget + $total_mat_mat2;
+                                                    $capex_budget_approve =  CapexBudget::where('department_id', $nv->department_id)->where('fiscal_year', $provision_budget2->fiscal_year)->update([
+                                                        'provision_budget' => $total
+                                                    ]);
+                                                }
+                                            }
+                                        }
+                                    }
+                                    if ($provision_budget3) {
+                                        if (!empty($total_mat_mat3)) {
+                                            if ($nextYear2 == $provision_budget3->fiscal_year) {
+                                                if ($provision_budget3->provision_budget == null) {
+                                                    $capex_budget_approve =  CapexBudget::where('department_id', $nv->department_id)->where('fiscal_year', $provision_budget3->fiscal_year)->update([
+                                                        'provision_budget' => $total_mat_mat3
+                                                    ]);
+                                                } else {
+                                                    $capexbudget =  $provision_budget3->provision_budget;
+                                                    $total = $capexbudget + $total_mat_mat3;
+                                                    $capex_budget_approve =  CapexBudget::where('department_id', $nv->department_id)->where('fiscal_year', $provision_budget3->fiscal_year)->update([
+                                                        'provision_budget' => $total
+                                                    ]);
+                                                }
+                                            }
+                                        }
+                                    }
+                                } elseif ($nv->budget_type == "OPEX") {
+                                    $provision_budget2 = OpexBudget::where('department_id', $nv->department_id)->where('fiscal_year', $nextYear1)->first();
+                                    $provision_budget3 = OpexBudget::where('department_id', $nv->department_id)->where('fiscal_year', $nextYear2)->first();
+
+                                    if ($provision_budget2) {
+                                        if (!empty($total_mat_mat2)) {
+                                            if ($nextYear1 == $provision_budget2->fiscal_year) {
+                                                if ($provision_budget2->provision_budget == null) {
+                                                    $capex_budget_approve =  OpexBudget::where('department_id', $nv->department_id)->where('fiscal_year', $provision_budget2->fiscal_year)->update([
+                                                        'provision_budget' => $total_mat_mat2
+                                                    ]);
+                                                } else {
+                                                    $OpexBudget =  $provision_budget2->provision_budget;
+                                                    $total = $OpexBudget + $total_mat_mat2;
+                                                    $capex_budget_approve =  OpexBudget::where('department_id', $nv->department_id)->where('fiscal_year', $provision_budget2->fiscal_year)->update([
+                                                        'provision_budget' => $total
+                                                    ]);
+                                                }
+                                            }
+                                        }
+                                    }
+                                    if ($provision_budget3) {
+                                        if (!empty($total_mat_mat3)) {
+                                            if ($nextYear2 == $provision_budget3->fiscal_year) {
+                                                if ($provision_budget3->provision_budget == null) {
+                                                    $capex_budget_approve =  OpexBudget::where('department_id', $nv->department_id)->where('fiscal_year', $provision_budget3->fiscal_year)->update([
+                                                        'provision_budget' => $total_mat_mat3
+                                                    ]);
+                                                } else {
+                                                    $OpexBudget =  $provision_budget3->provision_budget;
+                                                    $total = $OpexBudget + $total_mat_mat3;
+                                                    $capex_budget_approve =  OpexBudget::where('department_id', $nv->department_id)->where('fiscal_year', $provision_budget3->fiscal_year)->update([
+                                                        'provision_budget' => $total
+                                                    ]);
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+
+
+                        if ($nv->budget_type == "CAPEX") {
+                            $derc_info = '1';
+                        } else if ($nv->budget_type == "OPEX") {
+                            $derc_info = !empty($request_input['prop_number']) ? '1' : '0';
+                        }
+                        Nvsericestatus::where('material_id', $nv_status->material_id)
+                            ->update(['draft' => $draft, 'derc_info' => $derc_info]);
+
+                        NeedValidation::where('id', $request_input['nv_id'])
+                            ->update(['proposal_type' => $request_input['proposal_type']]);
+
+                        $data = [];
+
+                        $fileFields = [
+                            'previous_work_order',
+                            'derc_stakeholder_approvals',
+                            'consumption_details',
+                            'vend_quatation',
+                            'photo_product',
+                            'material_procurement',
+                            'budget_for_both',
+                            'others',
+                            'new_product',
+                            'cm_rate_ref',
+                            'vendor_quatation',
+                            'last_purchase_price',
+                            'user_estimation',
+                            'previous_wo_rc',
+                            'cost_calculation_for_service',
+                            'quant_just',
+                            'special_attch',
+                            'just_prop_upload',
+                        ];
+
+
+                        foreach ($fileFields as $fieldName) {
+                            if ($request->hasFile($fieldName)) {
+                                $files = $request->file($fieldName);
+
+                                if (is_array($files)) {
+                                    // Handle multiple files for 'others' field
+                                    $fileNames = [];
+
+                                    foreach ($files as $file) {
+                                        $newFileName = $file->getClientOriginalName();
+                                        $filePath = public_path('materials-doc/' . $newFileName);
+
+                                        // Check if a file with the same name already exists
+                                        if (!File::exists($filePath)) {
+                                            $file->move(public_path('materials-doc'), $newFileName);
+                                        }
+
+                                        $fileNames[] = $newFileName;
+                                    }
+
+                                    $data[$fieldName] = implode(',', $fileNames); // Convert array to string
+                                } else {
+                                    // Handle single file for other fields
+                                    $file = $files;
+                                    $newFileName = $file->getClientOriginalName();
+                                    $filePath = public_path('materials-doc/' . $newFileName);
+
+                                    // Check if a file with the same name already exists
+                                    if (!File::exists($filePath)) {
+                                        $file->move(public_path('materials-doc'), $newFileName);
+                                    }
+
+                                    $data[$fieldName] = $newFileName;
+                                }
+                            }
+                        }
+
+                        MaterialDoc::where('service_id', $service_id)->update($data);
+                    } elseif (
+                        $nv_status->rv1_status == 2 ||
+                        $nv_status->rv2_status == 2 ||
+                        $nv_status->rv3_status == 2 ||
+                        $nv_status->rv4_status == 2 ||
+                        $nv_status->hod_status == 2 ||
+                        $nv_status->groupcio_status == 2 ||
+                        $anyStageTwo
+                    ) {
+
+
+                        $nvmaterial = NVMaterial::create([
+                            'dept_id' => $request_input['dept_id'],
+                            'nv_id' => $request_input['nv_id'],
+                            'company_id' => $request_input['company_id'],
+                            'user_id' => \Auth::user()->id,
+                            'dop' => $request_input['dop'],
+                            'proposal_name' => $request_input['proposal_name'],
+                            'background' =>  $background,
+                            'just_Prop' =>  $just_Prop,
+                            'broad_just' => $broad_just,
+                            'draft' =>  $draft,
+                            'cost_trend_year1' => implode(',', $request_input['cost_trend_year1']),
+                            'cost_trend_year2' => implode(',', $request_input['cost_trend_year2']),
+                            'cost_trend_year3' => implode(',', $request_input['cost_trend_year3']),
+
+                            'benefit' => $request_input['benefit'],
+                            'implements_years' => $request_input['implements_years'],
+                            'imp_to' => implode(',', $request_input['imp_to']),
+                            'imp_from' => implode(',', $request_input['imp_from']),
+                            'imp_plan' => implode('.,', $request_input['imp_plan']),
+                            //'prop_type' => $request_input['prop_type'],
+                            'worktype' => $request_input['worktype'],
+                            'scheme_no' => implode(',', $request_input['scheme_no']),
+                            'scheme_des' => implode(',', $request_input['scheme_des']),
+                            'scheme_type' => $request_input['scheme_type'],
+                            'derc_ref_no' => $request_input['derc_ref_no'] ?? null,
+                            'derc_approval' => $request_input['derc_approval'] ?? null,
+                            'derc_app_date' => $request_input['derc_app_date'] ?? null,
+                            'budget_avl' => $budget_avl,
+                            'ptr_mva' => $request_input['ptr_mva'] ?? null,
+                            'dt_mva' => $request_input['dt_mva'] ?? null,
+                            'ehv_line' => $request_input['ehv_line'] ?? null,
+                            'tax_amount2' => $request_input['tax_amount2'] ?? null,
+                            'tax_amount3' => $request_input['tax_amount3'] ?? null,
+                            'total_mat_mat' => $total_mat_mat ?? null,
+                            'total_mat_mat2' => $total_mat_mat2 ?? null,
+                            'total_mat_mat3' => $total_mat_mat3 ?? null,
+                            'tax1' => $request_input['tax1'] ?? null,
+                            'tax2' => $request_input['tax2'] ?? null,
+                            'tax3' => $request_input['tax3'] ?? null,
+                            'tax4' => $request_input['tax4'] ?? null,
+                            'tax5' => $request_input['tax5'] ?? null,
+                            'tax6' => $request_input['tax6'] ?? null,
+                            'ht_line' => $request_input['ht_line'] ?? null,
+                            'lt_line' => $request_input['lt_line'] ?? null,
+                            'root_cause_analysis' => $request_input['root_cause_analysis'],
+                            'cause_analysis' => $request_input['cause_analysis'],
+                            'special_remarks' => $request_input['special_remarks'],
+                            // 'total_budget_material' => $request_input['total_budget_material'],
+                            'prop_number' => $request_input['prop_number'] ?? null,
+                            'mode_award' => $request_input['mode_award'],
+                            'past_3_year_actual_cost_fy' => implode(',', $request_input['past_3_year_actual_cost_fy']),
+                            'past_3_year_actual_cost' => implode(',', $request_input['past_3_year_actual_cost']),
+                            'past_3_year_actual_cost_service' => implode(',', $request_input['past_3_year_actual_cost_service']),
+                            'past_practice_follow' => $request_input['past_practice_follow'],
+                            'amc_prop_start_date' => $request_input['amc_prop_start_date'],
+                            'amc_prop_end_date' => $request_input['amc_prop_end_date'],
+                            'estimate_amount_of_service' => $request_input['estimate_amount_of_service'],
+                            'estimate_amount_of_service_civil' => $request_input['estimate_amount_of_service_civil'],
+                            'estimate_amount_of_rr_charge' => $request_input['estimate_amount_of_rr_charge'],
+                            'estimate_amount_other' => $request_input['estimate_amount_other'],
+                            'total_budget_service' => $total_budget_service,
+                            'add_budget' => $request_input['add_budget'] ?? null,
+                            'approved_budget' => $request_input['approved_budget'] ?? null,
+                            'total_budget_both' => $total_budget_both,
+                            'cap_add' => $request_input['cars-first'] ?? null,
+                            'ser_rel_nv' => $request_input['cars'],
+                            'material_amount' => implode(',', $request_input['material_amount']),
+                            'material_description' => implode(',', $request_input['material_description']),
+                            'service_amount' => implode(',', $request_input['service_amount']),
+                            'service_description' => implode(',', $request_input['service_description']),
+                            'new_product_text' => $request_input['new_product_text'],
+                            'quant_just_text' => $request_input['quant_just_text'],
+
+
+                        ]);
+                        $nv = NeedValidation::where('id', $request_input['nv_id'])->first();
+                        if ($nv->budgetary_provision == "Approved") {
+                            $bud_from_log = budget::where('dept_id', $request_input['dept_id'])->where('budget_type', $nv->budget_type)->where('fiscal_year', $nv->fiscal_year)->first('total_budget');
+                            $tot = $bud_from_log->total_budget == null ? 0 : $bud_from_log->total_budget;
+                            $budget = budget::where('dept_id', $nv->department_id)->where('budget_type', $nv->budget_type)->where('fiscal_year', $nv->fiscal_year)->update([
+                                'total_budget' => $tot + preg_replace('/[^\d.]/', '', $request->total_budget_both) - $request_input['add_budget'],
+                                'service_id' => $nv->service_id,
+                                'nv_id' => $request_input['nv_id'],
+                            ]);
+
+                            if (!empty($request_input['implements_years'])) {
+                                $Impyear = explode('-', $nv->fiscal_year);
+                                $nextStartYear1 = $Impyear[0] + 1;
+                                $nextEndYear1 = $Impyear[1] + 1;
+                                $nextStartYear2 = $Impyear[0] + 2;
+                                $nextEndYear2 = $Impyear[1] + 2;
+                                $nextYear1 = "{$nextStartYear1}-{$nextEndYear1}";
+                                $nextYear2 = "{$nextStartYear2}-{$nextEndYear2}";
+
+                                // if(!empty($total_mat_mat2)){
+                                //     $bud_from1 = budget::where('dept_id', $request_input['dept_id'])->where('budget_type',$nv->budget_type)->where('fiscal_year',$nextYear1)->first();
+                                //     if($bud_from1){
+                                //         $tot = $bud_from1->total_budget == null ? 0 : $bud_from1->total_budget;
+                                //         $budget =budget::where('dept_id',$nv->department_id)->where('budget_type',$nv->budget_type)->where('fiscal_year',$nextYear1)->update([
+                                //             'total_budget' => $tot + ($total_mat_mat2)
+                                //         ]);
+                                //     }
+                                // }
+
+                                // if(!empty($total_mat_mat3)){
+                                //     $bud_from2 = budget::where('dept_id', $request_input['dept_id'])->where('budget_type',$nv->budget_type)->where('fiscal_year',$nextYear2)->first();
+                                //     if($bud_from2){
+                                //         $tot = $bud_from2->total_budget == null ? 0 : $bud_from2->total_budget;
+                                //         $budget =budget::where('dept_id',$nv->department_id)->where('budget_type',$nv->budget_type)->where('fiscal_year',$nextYear2)->update([
+                                //             'total_budget' => $tot + ($total_mat_mat3)
+                                //         ]);
+                                //     }
+                                // }
+
+                                if ($nv->budget_type == "CAPEX") {
+                                    $provision_budget2 = CapexBudget::where('department_id', $nv->department_id)->where('fiscal_year', $nextYear1)->first();
+                                    $provision_budget3 = CapexBudget::where('department_id', $nv->department_id)->where('fiscal_year', $nextYear2)->first();
+
+                                    if ($provision_budget2) {
+                                        if (!empty($total_mat_mat2)) {
+                                            if ($nextYear1 == $provision_budget2->fiscal_year) {
+                                                if ($provision_budget2->provision_budget == null) {
+                                                    $capex_budget_approve =  CapexBudget::where('department_id', $nv->department_id)->where('fiscal_year', $provision_budget2->fiscal_year)->update([
+                                                        'provision_budget' => $total_mat_mat2
+                                                    ]);
+                                                } else {
+                                                    $capexbudget =  $provision_budget2->provision_budget;
+                                                    $total = $capexbudget + $total_mat_mat2;
+                                                    $capex_budget_approve =  CapexBudget::where('department_id', $nv->department_id)->where('fiscal_year', $provision_budget2->fiscal_year)->update([
+                                                        'provision_budget' => $total
+                                                    ]);
+                                                }
+                                            }
+                                        }
+                                    }
+                                    if ($provision_budget3) {
+                                        if (!empty($total_mat_mat3)) {
+                                            if ($nextYear2 == $provision_budget3->fiscal_year) {
+                                                if ($provision_budget3->provision_budget == null) {
+                                                    $capex_budget_approve =  CapexBudget::where('department_id', $nv->department_id)->where('fiscal_year', $provision_budget3->fiscal_year)->update([
+                                                        'provision_budget' => $total_mat_mat3
+                                                    ]);
+                                                } else {
+                                                    $capexbudget =  $provision_budget3->provision_budget;
+                                                    $total = $capexbudget + $total_mat_mat3;
+                                                    $capex_budget_approve =  CapexBudget::where('department_id', $nv->department_id)->where('fiscal_year', $provision_budget3->fiscal_year)->update([
+                                                        'provision_budget' => $total
+                                                    ]);
+                                                }
+                                            }
+                                        }
+                                    }
+                                } elseif ($nv->budget_type == "OPEX") {
+                                    $provision_budget2 = OpexBudget::where('department_id', $nv->department_id)->where('fiscal_year', $nextYear1)->first();
+                                    $provision_budget3 = OpexBudget::where('department_id', $nv->department_id)->where('fiscal_year', $nextYear2)->first();
+
+                                    if ($provision_budget2) {
+                                        if (!empty($total_mat_mat2)) {
+                                            if ($nextYear1 == $provision_budget2->fiscal_year) {
+                                                if ($provision_budget2->provision_budget == null) {
+                                                    $capex_budget_approve =  OpexBudget::where('department_id', $nv->department_id)->where('fiscal_year', $provision_budget2->fiscal_year)->update([
+                                                        'provision_budget' => $total_mat_mat2
+                                                    ]);
+                                                } else {
+                                                    $OpexBudget =  $provision_budget2->provision_budget;
+                                                    $total = $OpexBudget + $total_mat_mat2;
+                                                    $capex_budget_approve =  OpexBudget::where('department_id', $nv->department_id)->where('fiscal_year', $provision_budget2->fiscal_year)->update([
+                                                        'provision_budget' => $total
+                                                    ]);
+                                                }
+                                            }
+                                        }
+                                    }
+                                    if ($provision_budget3) {
+                                        if (!empty($total_mat_mat3)) {
+                                            if ($nextYear2 == $provision_budget3->fiscal_year) {
+                                                if ($provision_budget3->provision_budget == null) {
+                                                    $capex_budget_approve =  OpexBudget::where('department_id', $nv->department_id)->where('fiscal_year', $provision_budget3->fiscal_year)->update([
+                                                        'provision_budget' => $total_mat_mat3
+                                                    ]);
+                                                } else {
+                                                    $OpexBudget =  $provision_budget3->provision_budget;
+                                                    $total = $OpexBudget + $total_mat_mat3;
+                                                    $capex_budget_approve =  OpexBudget::where('department_id', $nv->department_id)->where('fiscal_year', $provision_budget3->fiscal_year)->update([
+                                                        'provision_budget' => $total
+                                                    ]);
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        $service_id = $request['service_id'];
+                        $nvm = NVMaterial::find($service_id);
+                        $nv_status = Nvsericestatus::where('material_id', $nvm->id)->orderBy('id', 'asc')->first();
+                        Nvsericestatus::where('material_id', $nv_status->material_id)
+                            ->update(['previous_draft_status' => '1']);
+
+                        $count = Nvsericestatus::where('nv_id', $request_input['nv_id'])->count();
+                        $version_nv = ($count >= 1) ? $request_input['nv_id'] . '-v' . ($count + 1) : (string) $request_input['nv_id'];
+
+                        $nvmaterialstatus = new Nvsericestatus();
+                        $nvmaterialstatus->material_id = $nvmaterial->id;
+                        $nvmaterialstatus->nv_id = $request_input['nv_id'];
+                        $nvmaterialstatus->company_id = $request_input['company_id'];
+                        $nvmaterialstatus->draft = $draft;
+                        $nvmaterialstatus->version_nv = $version_nv;
+
+                        if ($nv->budget_type == "CAPEX") {
+                            $nvmaterialstatus->derc_info = '1';
+                        } else if ($nv->budget_type == "OPEX") {
+                            $nvmaterialstatus->derc_info = !empty($request_input['prop_number']) ? '1' : '0';
+                        }
+
+                        $nvmaterialstatus->save();
+
+                        NeedValidation::where('id', $request_input['nv_id'])
+                            ->update(['proposal_type' => $request_input['proposal_type']]);
+
+                        if (!empty($nvmaterial)) {
+                            $serviceId = $nvmaterial->id;
+                            $data = [];
+
+                            $data['service_id'] = $serviceId;
+
+
+                            $fileFields = [
+                                'previous_work_order',
+                                'derc_stakeholder_approvals',
+                                'consumption_details',
+                                'vend_quatation',
+                                'photo_product',
+                                'material_procurement',
+                                'budget_for_both',
+                                'others',
+                                'new_product',
+                                'cm_rate_ref',
+                                'vendor_quatation',
+                                'last_purchase_price',
+                                'user_estimation',
+                                'previous_wo_rc',
+                                'cost_calculation_for_service',
+                                'quant_just',
+                                'special_attch',
+                                'just_prop_upload',
+                            ];
+
+
+                            foreach ($fileFields as $fieldName) {
+                                if ($request->hasFile($fieldName)) {
+                                    $files = $request->file($fieldName);
+
+                                    if (is_array($files)) {
+                                        // Handle multiple files for 'others' field
+                                        $fileNames = [];
+
+                                        foreach ($files as $file) {
+                                            $newFileName = $file->getClientOriginalName();
+                                            $filePath = public_path('materials-doc/' . $newFileName);
+
+                                            // Check if a file with the same name already exists
+                                            if (!File::exists($filePath)) {
+                                                $file->move(public_path('materials-doc'), $newFileName);
+                                            }
+
+                                            $fileNames[] = $newFileName;
+                                        }
+
+                                        $data[$fieldName] = implode(',', $fileNames); // Convert array to string
+                                    } else {
+                                        // Handle single file for other fields
+                                        $file = $files;
+                                        $newFileName = $file->getClientOriginalName();
+                                        $filePath = public_path('materials-doc/' . $newFileName);
+
+                                        // Check if a file with the same name already exists
+                                        if (!File::exists($filePath)) {
+                                            $file->move(public_path('materials-doc'), $newFileName);
+                                        }
+
+                                        $data[$fieldName] = $newFileName;
+                                    }
+                                }
+                            }
+
+                            $data['created_by'] = \Auth::user()->id;
+
+                            $document = MaterialDoc::create($data);
+                        }
+                    }
+                    //  }
+                    $response['result'] = 'success';
+                    $response['msg'] = 'NV Material Updated';
+
+                    if (Auth::user()->role_id == 9) {
+                        $nv_id = $request->nv_id;
+                        $user_id = Auth::user()->id;
+                        $employees = Employee::where("user_id", $user_id)->first();
+                        $departmentIds = explode(',', $employees->department_id);
+                        $departments = Department::whereIn("id", $departmentIds)->get();
+
+                        // $depart = Department::where("id",$employees->department_id)->first();
+                        // $nv_type = NeedValidation::where('user_id', $user_id)->where('id', $nv_id)->first();
+                        $initiated_date = NVMaterial::where('user_id', $user_id)->where('nv_id', $nv_id)->first();
+                        $initiated_by =  Employee::where('user_id', $initiated_date->user_id)->first();
+
+                        $ini_date = NVMaterial::where('user_id', $user_id)->where('nv_id', $nv_id)->first();
+                        $ini_by =  Employee::where('user_id', $ini_date->user_id)->first();
+
+                        $tble_material = NVMaterial::where('nv_id', $nv_id)->first();
+                        $user = User::select('email', 'name', 'id')->where('id', $tble_material->user_id)->first();
+                        $nv_type = NeedValidation::where('id', $nv_id)->first();
+                        $depart = Department::where("id",  $nv_type->department_id)->first();
+
+                        foreach ($departments as $department) {
+                            $hod = $department->dep_hod;
+                            $rv1 = $department->dep_rew1;
+                            $rv2 = $department->dep_rew2;
+                            $rv3 = $department->dep_rew3;
+                            $rv4 = $department->dep_rew4;
+                        }
+                        if (!empty($rv1)) {
+                            $emp_rv1 = Employee::where('user_id', $department->dep_rew1)->first();
+                        } elseif (!empty($rv2)) {
+                            $emp_rv1 = Employee::where('user_id', $department->dep_rew2)->first();
+                        } elseif (!empty($rv3)) {
+                            $emp_rv1 = Employee::where('user_id', $department->dep_rew3)->first();
+                        } elseif (!empty($rv4)) {
+                            $emp_rv1 = Employee::where('user_id', $department->dep_rew4)->first();
+                        } else {
+                            $emp_rv1 = Employee::where('user_id', $department->dep_hod)->first();
+                        }
+                        $to_emails = $emp_rv1->email;
+
+
+                        $p1 = "You have a new request that requires your approval:";
+                        $p2 = "Please review the request and take appropriate action.";
+                        $remark = "";
+                        //  send mail 
+                        Mail::send('emailtemp.doc_mail', ['username' => 'user', 'initiated_date' => $initiated_date, 'initiated_by' => $initiated_by, 'ini_date' => $ini_date, 'ini_by' => $ini_by, 'p1' => $p1, 'p2' => $p2, 'nv_type' => $nv_type, 'remark' => $remark ?? '', 'department' => $depart], function ($message) use ($to_emails) {
+                            $message->from(env('MAIL_FROM_ADDRESS'), 'NV');
+                            $message->to($to_emails);
+                            // //$message->cc('raushan@rediansoftware.com');
+                            $message->subject("Need Validation Status Update : Seeking your validation");
+                        });
+
+                        $serviceType = ($nv_type->service_id == 1) ? 'Material' : 'Service';
+                        $subject = "Your NV (NV/{$nv_type->budget_type}/{$nv_type->fiscal_year}/{$depart->name}/{$serviceType}/{$nv_type->id}) has been submitted";
+                        $to_emails = $user->email;
+                        Mail::send('emailtemp.nvsubmit_mail', ['user' => $user, 'initiated_date' => $initiated_date, 'initiated_by' => $initiated_by, 'ini_date' => $ini_date, 'ini_by' => $ini_by, 'p1' => $p1, 'p2' => $p2, 'nv_type' => $nv_type, 'remark' => $remark ?? '', 'department' => $depart, 'status' => $status,], function ($message) use ($to_emails, $subject) {
+                            $message->from(env('MAIL_FROM_ADDRESS'), 'NV');
+                            $message->to($to_emails);
+                            // //$message->cc('raushan@rediansoftware.com');
+                            $message->subject($subject);
+                        });
+                    }
+                }
+            } elseif ($status == "save_nv") {
+                if (empty($request['service_id'])) {
+
+                    $rules = [
+                        // 'dop' => 'required|numeric|unique:tbl_material,dop,except,id',
+                        // 'short_code' => 'required|string|max:10|unique:divisions,short_code,except,id',
+                    ];
+
+                    $messages = [
+                        // 'dop.unique' => 'This DOP ref no has already been taken',
+                        // 'name.max' => 'Division name should not be more than 50 characters',
+                        // 'short_code.required' => 'Please enter division short code',
+                        // 'short_code.max' => 'short code should not be more than 10 characters',
+
+                    ];
+                    $validator = Validator::make($request_input, $rules, $messages);
+                    if ($validator->fails()) {
+                        $response['msg'] = $validator->errors()->toArray();
+                        $response['result'] = 'error';
+                    } else {
+
+
+                        if ($request_input['implements_years']  == Null) {
+                            $period_from =  Null;
+                            $period_to = Null;
+                            $period_plan = Null;
+                        } else {
+                            $period_from =  implode(',', $request->input('imp_from'));
+                            $period_to = implode(',', $request->input('imp_to'));
+                            $period_plan = implode('.,', $request->input('imp_plan'));
+                        }
+                        $nvmaterial = NVMaterial::create([
+                            'dept_id' => $request_input['dept_id'],
+                            'nv_id' => $request_input['nv_id'],
+                            'company_id' => $request_input['company_id'],
+                            'user_id' => \Auth::user()->id,
+                            'dop' => $request_input['dop'],
+                            'proposal_name' => $request_input['proposal_name'],
+                            'background' =>  $background,
+                            'just_Prop' =>  $just_Prop,
+                            'broad_just' => $broad_just,
+                            'draft' =>  $draft,
+                            'cost_trend_year1' => implode(',', $request_input['cost_trend_year1']),
+                            'cost_trend_year2' => implode(',', $request_input['cost_trend_year2']),
+                            'cost_trend_year3' => implode(',', $request_input['cost_trend_year3']),
+
+                            'benefit' => $request_input['benefit'],
+                            'implements_years' => $request_input['implements_years'],
+                            'imp_from' => $period_from,
+                            'imp_to' => $period_to,
+                            'imp_plan' => $period_plan,
+                            // 'imp_to' => implode(',', $request_input['imp_to']),
+                            // 'imp_from' => implode(',', $request_input['imp_from']),
+                            // 'imp_plan' => implode('.,', $request_input['imp_plan']),
+                            //'prop_type' => $request_input['prop_type'],
+                            'worktype' => $request_input['worktype'],
+                            'scheme_no' => implode(',', $request_input['scheme_no']),
+                            'scheme_des' => implode(',', $request_input['scheme_des']),
+                            'scheme_type' => $request_input['scheme_type'],
+                            'derc_ref_no' => $request_input['derc_ref_no'] ?? null,
+                            'derc_approval' => $request_input['derc_approval'] ?? null,
+                            'derc_app_date' => $request_input['derc_app_date'] ?? null,
+
+
+                            'budget_avl' => $budget_avl,
+                            'ptr_mva' => $request_input['ptr_mva'] ?? null,
+                            'dt_mva' => $request_input['dt_mva'] ?? null,
+                            'ehv_line' => $request_input['ehv_line'] ?? null,
+                            'tax_amount2' => $request_input['tax_amount2'] ?? null,
+                            'tax_amount3' => $request_input['tax_amount3'] ?? null,
+                            'tax1' => $request_input['tax1'] ?? null,
+                            'tax2' => $request_input['tax2'] ?? null,
+                            'tax3' => $request_input['tax3'] ?? null,
+                            'tax4' => $request_input['tax4'] ?? null,
+                            'tax5' => $request_input['tax5'] ?? null,
+                            'tax6' => $request_input['tax6'] ?? null,
+                            'ht_line' => $request_input['ht_line'] ?? null,
+                            'lt_line' => $request_input['lt_line'] ?? null,
+                            'root_cause_analysis' => $request_input['root_cause_analysis'],
+                            'cause_analysis' => $request_input['cause_analysis'],
+                            'special_remarks' => $request_input['special_remarks'],
+                            // 'total_budget_material' => $request_input['total_budget_material'],
+                            'prop_number' => $request_input['prop_number'] ?? null,
+                            'mode_award' => $request_input['mode_award'],
+                            'past_3_year_actual_cost_fy' => implode(',', $request_input['past_3_year_actual_cost_fy']),
+                            'past_3_year_actual_cost' => implode(',', $request_input['past_3_year_actual_cost']),
+                            'past_3_year_actual_cost_service' => implode(',', $request_input['past_3_year_actual_cost_service']),
+                            'past_practice_follow' => $request_input['past_practice_follow'],
+                            'amc_prop_start_date' => $request_input['amc_prop_start_date'],
+                            'amc_prop_end_date' => $request_input['amc_prop_end_date'],
+                            'estimate_amount_of_service' => $request_input['estimate_amount_of_service'],
+                            'estimate_amount_of_service_civil' => $request_input['estimate_amount_of_service_civil'],
+                            'estimate_amount_of_rr_charge' => $request_input['estimate_amount_of_rr_charge'],
+                            'estimate_amount_other' => $request_input['estimate_amount_other'],
+                            'total_budget_service' => $total_budget_service,
+                            'add_budget' => $request_input['add_budget'] ?? null,
+                            'approved_budget' => $request_input['approved_budget'] ?? null,
+                            'total_budget_both' => $total_budget_both,
+                            'cap_add' => $request_input['cars-first'] ?? null,
+                            'ser_rel_nv' => $request_input['cars'],
+                            'material_amount' => implode(',', $request_input['material_amount']),
+                            'material_description' => implode(',', $request_input['material_description']),
+                            'service_amount' => implode(',', $request_input['service_amount']),
+                            'service_description' => implode(',', $request_input['service_description']),
+                            'edit_count' => 1,
+                            'new_product_text' => $request_input['new_product_text'],
+                            'quant_just_text' => $request_input['quant_just_text'],
+
+
+
+                        ]);
+
+
+                        $count = Nvsericestatus::where('nv_id', $request_input['nv_id'])->count();
+                        $version_nv = ($count >= 1) ? $request_input['nv_id'] . '-v' . ($count + 1) : (string) $request_input['nv_id'];
+
+                        $nvmaterialstatus = new Nvsericestatus();
+                        $nvmaterialstatus->material_id = $nvmaterial->id;
+                        $nvmaterialstatus->nv_id = $request_input['nv_id'];
+                        $nvmaterialstatus->company_id = $request_input['company_id'];
+                        $nvmaterialstatus->draft = $draft;
+                        $nvmaterialstatus->version_nv = $version_nv;
+
+                        if ($nv->budget_type == "CAPEX") {
+                            $nvmaterialstatus->derc_info = '1';
+                        } else if ($nv->budget_type == "OPEX") {
+                            $nvmaterialstatus->derc_info = !empty($request_input['prop_number']) ? '1' : '0';
+                        }
+
+                        $nvmaterialstatus->save();
+
+                        NeedValidation::where('id', $request_input['nv_id'])
+                            ->update(['proposal_type' => $request_input['proposal_type']]);
+
+                        if (!empty($nvmaterial)) {
+                            $serviceId = $nvmaterial->id;
+                            $data = [];
+
+                            $data['service_id'] = $serviceId;
+
+
+                            $fileFields = [
+                                'previous_work_order',
+                                'derc_stakeholder_approvals',
+                                'consumption_details',
+                                'vend_quatation',
+                                'photo_product',
+                                'material_procurement',
+                                'budget_for_both',
+                                'others',
+                                'new_product',
+                                'cm_rate_ref',
+                                'vendor_quatation',
+                                'last_purchase_price',
+                                'user_estimation',
+                                'previous_wo_rc',
+                                'cost_calculation_for_service',
+                                'quant_just',
+                                'special_attch',
+                                'just_prop_upload',
+                            ];
+
+                            foreach ($fileFields as $fieldName) {
+                                if ($request->hasFile($fieldName)) {
+                                    $files = $request->file($fieldName);
+
+                                    if (is_array($files)) {
+                                        // Handle multiple files for 'others' field
+                                        $fileNames = [];
+
+                                        foreach ($files as $file) {
+                                            $newFileName = $file->getClientOriginalName();
+                                            $filePath = public_path('materials-doc/' . $newFileName);
+
+                                            // Check if a file with the same name already exists
+                                            if (!File::exists($filePath)) {
+                                                $file->move(public_path('materials-doc'), $newFileName);
+                                            }
+
+                                            $fileNames[] = $newFileName;
+                                        }
+
+                                        $data[$fieldName] = implode(',', $fileNames); // Convert array to string
+                                    } else {
+                                        // Handle single file for other fields
+                                        $file = $files;
+                                        $newFileName = $file->getClientOriginalName();
+                                        $filePath = public_path('materials-doc/' . $newFileName);
+
+                                        // Check if a file with the same name already exists
+                                        if (!File::exists($filePath)) {
+                                            $file->move(public_path('materials-doc'), $newFileName);
+                                        }
+
+                                        $data[$fieldName] = $newFileName;
+                                    }
+                                }
+                            }
+
+                            $data['created_by'] = \Auth::user()->id;
+                            // dd($data);
+                            $document = MaterialDoc::create($data);
+                        }
+                        $response['result'] = 'success';
+                        $response['msg'] = 'NV Material Created';
+                    }
+                } else {
+                    // dd("hello");
+                    $service_id = $request['service_id'];
+                    $nvm = NVMaterial::find($service_id);
+                    $nv_status = Nvsericestatus::where('nv_id', $nvm->nv_id)->orderBy('id', 'desc')->first();
+                    $nv_stage = DB::table('capex_workflows_status')->where('material_id', $nvm->id)->get();
+
+                    $allStagesZero = true;
+                    $anyStageTwo = false;
+
+                    if ($nv_stage->count()) {
+                        foreach ($nv_stage as $stage) {
+                            if ($stage->nv_stage_status != 0) {
+                                $allStagesZero = false;
+                            }
+                            if ($stage->nv_stage_status == 2) {
+                                $anyStageTwo = true;
+                            }
+                        }
+                    }
+
+                    if (
+                        $nv_status->rv1_status == 0 &&
+                        $nv_status->rv2_status == 0 &&
+                        $nv_status->rv3_status == 0 &&
+                        $nv_status->rv4_status == 0 &&
+                        $nv_status->hod_status == 0 &&
+                        $nv_status->groupcio_status == 0 &&
+                        $allStagesZero
+                    ) {
+                        if ($request_input['implements_years']  == Null) {
+                            $period_from =  Null;
+                            $period_to = Null;
+                            $period_plan = Null;
+                        } else {
+                            $period_from =  implode(',', $request->input('imp_from'));
+                            $period_to = implode(',', $request->input('imp_to'));
+                            $period_plan = implode('.,', $request->input('imp_plan'));
+                        }
+                        //    dd(implode(',', $request_input['imp_plan']));
+                        NVMaterial::find($service_id)->update([
+                            'dept_id' => $request_input['dept_id'],
+                            'nv_id' => $request_input['nv_id'],
+                            'company_id' => $request_input['company_id'],
+                            'user_id' => \Auth::user()->id,
+                            'dop' => $request_input['dop'],
+                            'proposal_name' => $request_input['proposal_name'],
+                            'background' =>  $background,
+                            'just_Prop' =>  $just_Prop,
+                            'broad_just' => $broad_just,
+                            'draft' =>  $draft,
+                            'cost_trend_year1' => implode(',', $request_input['cost_trend_year1']),
+                            'cost_trend_year2' => implode(',', $request_input['cost_trend_year2']),
+                            'cost_trend_year3' => implode(',', $request_input['cost_trend_year3']),
+
+                            'benefit' => $request_input['benefit'],
+                            'implements_years' => $request_input['implements_years'],
+                            'imp_from' => $period_from,
+                            'imp_to' => $period_to,
+                            'imp_plan' => $period_plan,
+                            // 'imp_to' => implode(',', $request_input['imp_to']),
+                            // 'imp_from' => implode(',', $request_input['imp_from']),
+                            // 'imp_plan' => implode('.,', $request_input['imp_plan']),
+                            //  'prop_type' => $request_input['prop_type'],
+                            'worktype' => $request_input['worktype'],
+                            'scheme_no' => implode(',', $request_input['scheme_no']),
+                            'scheme_des' => implode(',', $request_input['scheme_des']),
+                            'scheme_type' => $request_input['scheme_type'],
+                            'derc_ref_no' => $request_input['derc_ref_no'] ?? null,
+                            'derc_approval' => $request_input['derc_approval'] ?? null,
+                            'derc_app_date' => $request_input['derc_app_date'] ?? null,
+
+
+                            'budget_avl' => $budget_avl,
+                            'ptr_mva' => $request_input['ptr_mva'] ?? null,
+                            'dt_mva' => $request_input['dt_mva'] ?? null,
+                            'ehv_line' => $request_input['ehv_line'] ?? null,
+                            'tax_amount2' => $request_input['tax_amount2'] ?? null,
+                            'tax_amount3' => $request_input['tax_amount3'] ?? null,
+                            'tax1' => $request_input['tax1'] ?? null,
+                            'tax2' => $request_input['tax2'] ?? null,
+                            'tax3' => $request_input['tax3'] ?? null,
+                            'tax4' => $request_input['tax4'] ?? null,
+                            'tax5' => $request_input['tax5'] ?? null,
+                            'tax6' => $request_input['tax6'] ?? null,
+                            'ht_line' => $request_input['ht_line'] ?? null,
+                            'lt_line' => $request_input['lt_line'] ?? null,
+                            'root_cause_analysis' => $request_input['root_cause_analysis'],
+                            'cause_analysis' => $request_input['cause_analysis'],
+                            'special_remarks' => $request_input['special_remarks'],
+                            // 'total_budget_material' => $request_input['total_budget_material'],
+                            'prop_number' => $request_input['prop_number'] ?? null,
+                            'mode_award' => $request_input['mode_award'],
+                            'past_3_year_actual_cost_fy' => implode(',', $request_input['past_3_year_actual_cost_fy']),
+                            'past_3_year_actual_cost' => implode(',', $request_input['past_3_year_actual_cost']),
+                            'past_3_year_actual_cost_service' => implode(',', $request_input['past_3_year_actual_cost_service']),
+                            'past_practice_follow' => $request_input['past_practice_follow'],
+                            'amc_prop_start_date' => $request_input['amc_prop_start_date'],
+                            'amc_prop_end_date' => $request_input['amc_prop_end_date'],
+                            'estimate_amount_of_service' => $request_input['estimate_amount_of_service'],
+                            'estimate_amount_of_service_civil' => $request_input['estimate_amount_of_service_civil'],
+                            'estimate_amount_of_rr_charge' => $request_input['estimate_amount_of_rr_charge'],
+                            'estimate_amount_other' => $request_input['estimate_amount_other'],
+                            'total_budget_service' => $total_budget_service,
+                            'add_budget' => $request_input['add_budget'] ?? null,
+                            'approved_budget' => $request_input['approved_budget'] ?? null,
+                            'total_budget_both' => $total_budget_both,
+                            'cap_add' => $request_input['cars-first'] ?? null,
+                            'ser_rel_nv' => $request_input['cars'],
+                            'material_amount' => implode(',', $request_input['material_amount']),
+                            'material_description' => implode(',', $request_input['material_description']),
+                            'service_amount' => implode(',', $request_input['service_amount']),
+                            'service_description' => implode(',', $request_input['service_description']),
+                            'new_product_text' => $request_input['new_product_text'],
+                            'quant_just_text' => $request_input['quant_just_text'],
+
+                        ]);
+
+                        if ($nv->budget_type == "CAPEX") {
+                            $derc_info = '1';
+                        } else if ($nv->budget_type == "OPEX") {
+                            $derc_info = !empty($request_input['prop_number']) ? '1' : '0';
+                        }
+                        Nvsericestatus::where('material_id', $nv_status->material_id)
+                            ->update(['draft' => $draft, 'derc_info' => $derc_info]);
+
+                        NeedValidation::where('id', $request_input['nv_id'])
+                            ->update(['proposal_type' => $request_input['proposal_type']]);
+
+                        $data = [];
+
+
+                        $fileFields = [
+                            'previous_work_order',
+                            'derc_stakeholder_approvals',
+                            'consumption_details',
+                            'vend_quatation',
+                            'photo_product',
+                            'material_procurement',
+                            'budget_for_both',
+                            'others',
+                            'new_product',
+                            'cm_rate_ref',
+                            'vendor_quatation',
+                            'last_purchase_price',
+                            'user_estimation',
+                            'previous_wo_rc',
+                            'cost_calculation_for_service',
+                            'quant_just',
+                            'special_attch',
+                            'just_prop_upload',
+                        ];
+
+
+                        foreach ($fileFields as $fieldName) {
+                            if ($request->hasFile($fieldName)) {
+                                $files = $request->file($fieldName);
+
+                                if (is_array($files)) {
+                                    // Handle multiple files for 'others' field
+                                    $fileNames = [];
+
+                                    foreach ($files as $file) {
+                                        $newFileName = $file->getClientOriginalName();
+                                        $filePath = public_path('materials-doc/' . $newFileName);
+
+                                        // Check if a file with the same name already exists
+                                        if (!File::exists($filePath)) {
+                                            $file->move(public_path('materials-doc'), $newFileName);
+                                        }
+
+                                        $fileNames[] = $newFileName;
+                                    }
+
+                                    $data[$fieldName] = implode(',', $fileNames); // Convert array to string
+                                } else {
+                                    // Handle single file for other fields
+                                    $file = $files;
+                                    $newFileName = $file->getClientOriginalName();
+                                    $filePath = public_path('materials-doc/' . $newFileName);
+
+                                    // Check if a file with the same name already exists
+                                    if (!File::exists($filePath)) {
+                                        $file->move(public_path('materials-doc'), $newFileName);
+                                    }
+
+                                    $data[$fieldName] = $newFileName;
+                                }
+                            }
+                        }
+                        $data['created_by'] = \Auth::user()->id;
+                        // print_r($data);die;
+                        //    $document = ServiceDoc::create($data);
+                        // dd($data);
+                        MaterialDoc::where('service_id', $service_id)->update($data);
+                    } elseif (
+                        $nv_status->rv1_status == 2 ||
+                        $nv_status->rv2_status == 2 ||
+                        $nv_status->rv3_status == 2 ||
+                        $nv_status->rv4_status == 2 ||
+                        $nv_status->hod_status == 2 ||
+                        $nv_status->groupcio_status == 2 ||
+                        $anyStageTwo
+                    ) {
+
+                        if ($request_input['implements_years']  == Null) {
+                            $period_from =  Null;
+                            $period_to = Null;
+                            $period_plan = Null;
+                        } else {
+                            $period_from =  implode(',', $request->input('imp_from'));
+                            $period_to = implode(',', $request->input('imp_to'));
+                            $period_plan = implode('.,', $request->input('imp_plan'));
+                        }
+
+                        $nvmaterial = NVMaterial::create([
+                            'dept_id' => $request_input['dept_id'],
+                            'nv_id' => $request_input['nv_id'],
+                            'company_id' => $request_input['company_id'],
+                            'user_id' => \Auth::user()->id,
+                            'dop' => $request_input['dop'],
+                            'proposal_name' => $request_input['proposal_name'],
+                            'background' =>  $background,
+                            'just_Prop' =>  $just_Prop,
+                            'broad_just' => $broad_just,
+                            'draft' =>  $draft,
+                            'cost_trend_year1' => implode(',', $request_input['cost_trend_year1']),
+                            'cost_trend_year2' => implode(',', $request_input['cost_trend_year2']),
+                            'cost_trend_year3' => implode(',', $request_input['cost_trend_year3']),
+
+                            'benefit' => $request_input['benefit'],
+                            'implements_years' => 0,
+                            'imp_from' => null,
+                            'imp_to' => null,
+                            'imp_plan' => null,
+                            // 'imp_to' => implode(',', $request_input['imp_to']),
+                            // 'imp_from' => implode(',', $request_input['imp_from']),
+                            // 'imp_plan' => implode('.,', $request_input['imp_plan']),
+                            //'prop_type' => $request_input['prop_type'],
+                            'worktype' => $request_input['worktype'],
+                            'scheme_no' => implode(',', $request_input['scheme_no']),
+                            'scheme_des' => implode(',', $request_input['scheme_des']),
+                            'scheme_type' => $request_input['scheme_type'],
+                            'derc_ref_no' => $request_input['derc_ref_no'] ?? null,
+                            'derc_approval' => $request_input['derc_approval'] ?? null,
+                            'derc_app_date' => $request_input['derc_app_date'] ?? null,
+                            'budget_avl' => $budget_avl,
+                            'ptr_mva' => $request_input['ptr_mva'] ?? null,
+                            'dt_mva' => $request_input['dt_mva'] ?? null,
+                            'ehv_line' => $request_input['ehv_line'] ?? null,
+                            'tax_amount2' => $request_input['tax_amount2'] ?? null,
+                            'tax_amount3' => $request_input['tax_amount3'] ?? null,
+                            'tax1' => $request_input['tax1'] ?? null,
+                            'tax2' => $request_input['tax2'] ?? null,
+                            'tax3' => $request_input['tax3'] ?? null,
+                            'tax4' => $request_input['tax4'] ?? null,
+                            'tax5' => $request_input['tax5'] ?? null,
+                            'tax6' => $request_input['tax6'] ?? null,
+                            'ht_line' => $request_input['ht_line'] ?? null,
+                            'lt_line' => $request_input['lt_line'] ?? null,
+                            'root_cause_analysis' => $request_input['root_cause_analysis'],
+                            'cause_analysis' => $request_input['cause_analysis'],
+                            'special_remarks' => $request_input['special_remarks'],
+                            // 'total_budget_material' => $request_input['total_budget_material'],
+                            'prop_number' => $request_input['prop_number'] ?? null,
+                            'mode_award' => $request_input['mode_award'],
+                            'past_3_year_actual_cost_fy' => implode(',', $request_input['past_3_year_actual_cost_fy']),
+                            'past_3_year_actual_cost' => implode(',', $request_input['past_3_year_actual_cost']),
+                            'past_3_year_actual_cost_service' => implode(',', $request_input['past_3_year_actual_cost_service']),
+                            'past_practice_follow' => $request_input['past_practice_follow'],
+                            'amc_prop_start_date' => $request_input['amc_prop_start_date'],
+                            'amc_prop_end_date' => $request_input['amc_prop_end_date'],
+                            'estimate_amount_of_service' => $request_input['estimate_amount_of_service'],
+                            'estimate_amount_of_service_civil' => $request_input['estimate_amount_of_service_civil'],
+                            'estimate_amount_of_rr_charge' => $request_input['estimate_amount_of_rr_charge'],
+                            'estimate_amount_other' => $request_input['estimate_amount_other'],
+                            'total_budget_service' => $total_budget_service,
+                            'add_budget' => $request_input['add_budget'] ?? null,
+                            'approved_budget' => $request_input['approved_budget'] ?? null,
+                            'total_budget_both' => $total_budget_both,
+                            'cap_add' => $request_input['cars-first'] ?? null,
+                            'ser_rel_nv' => $request_input['cars'],
+                            'material_amount' => implode(',', $request_input['material_amount']),
+                            'material_description' => implode(',', $request_input['material_description']),
+                            'service_amount' => implode(',', $request_input['service_amount']),
+                            'service_description' => implode(',', $request_input['service_description']),
+                            'new_product_text' => $request_input['new_product_text'],
+                            'quant_just_text' => $request_input['quant_just_text'],
+
+
+                        ]);
+
+
+                        $service_id = $request['service_id'];
+                        $nvm = NVMaterial::find($service_id);
+                        $nv_status = Nvsericestatus::where('nv_id', $nvm->nv_id)->orderBy('id', 'asc')->first();
+                        Nvsericestatus::where('material_id', $nv_status->material_id)
+                            ->update(['previous_draft_status' => '1']);
+
+                        $count = Nvsericestatus::where('nv_id', $request_input['nv_id'])->count();
+                        $version_nv = ($count >= 1) ? $request_input['nv_id'] . '-v' . ($count + 1) : (string) $request_input['nv_id'];
+
+                        $nvmaterialstatus = new Nvsericestatus();
+                        $nvmaterialstatus->material_id = $nvmaterial->id;
+                        $nvmaterialstatus->nv_id = $request_input['nv_id'];
+                        $nvmaterialstatus->company_id = $request_input['company_id'];
+                        $nvmaterialstatus->draft = $draft;
+                        $nvmaterialstatus->version_nv = $version_nv;
+
+                        if ($nv->budget_type == "CAPEX") {
+                            $nvmaterialstatus->derc_info = '1';
+                        } else if ($nv->budget_type == "OPEX") {
+                            $nvmaterialstatus->derc_info = !empty($request_input['prop_number']) ? '1' : '0';
+                        }
+
+                        $nvmaterialstatus->save();
+
+                        NeedValidation::where('id', $request_input['nv_id'])
+                            ->update(['proposal_type' => $request_input['proposal_type']]);
+
+
+                        if (!empty($nvmaterial)) {
+                            $serviceId = $nvmaterial->id;
+                            $data = [];
+
+                            $data['service_id'] = $serviceId;
+
+
+                            $fileFields = [
+                                'previous_work_order',
+                                'derc_stakeholder_approvals',
+                                'consumption_details',
+                                'vend_quatation',
+                                'photo_product',
+                                'material_procurement',
+                                'budget_for_both',
+                                'others',
+                                'new_product',
+                                'cm_rate_ref',
+                                'vendor_quatation',
+                                'last_purchase_price',
+                                'user_estimation',
+                                'previous_wo_rc',
+                                'cost_calculation_for_service',
+                                'quant_just',
+                                'special_attch',
+                                'just_prop_upload',
+                            ];
+
+
+                            foreach ($fileFields as $fieldName) {
+                                if ($request->hasFile($fieldName)) {
+                                    $files = $request->file($fieldName);
+
+                                    if (is_array($files)) {
+                                        // Handle multiple files for 'others' field
+                                        $fileNames = [];
+
+                                        foreach ($files as $file) {
+                                            $newFileName = $file->getClientOriginalName();
+                                            $filePath = public_path('materials-doc/' . $newFileName);
+
+                                            // Check if a file with the same name already exists
+                                            if (!File::exists($filePath)) {
+                                                $file->move(public_path('materials-doc'), $newFileName);
+                                            }
+
+                                            $fileNames[] = $newFileName;
+                                        }
+
+                                        $data[$fieldName] = implode(',', $fileNames); // Convert array to string
+                                    } else {
+                                        // Handle single file for other fields
+                                        $file = $files;
+                                        $newFileName = $file->getClientOriginalName();
+                                        $filePath = public_path('materials-doc/' . $newFileName);
+
+                                        // Check if a file with the same name already exists
+                                        if (!File::exists($filePath)) {
+                                            $file->move(public_path('materials-doc'), $newFileName);
+                                        }
+
+                                        $data[$fieldName] = $newFileName;
+                                    }
+                                }
+                            }
+
+                            $data['created_by'] = \Auth::user()->id;
+                            $document = MaterialDoc::create($data);
+                        }
+                    }
+                    //  }
+                    $response['result'] = 'success';
+                    $response['msg'] = 'NV Material Updated';
+                }
+            }
+        } catch (\Exception $e) {
+            app(\App\Exceptions\Handler::class)->report($e);
+            $response['result'] = 'failure';
+            $response['msg'] = $e->getMessage();
+        }
+
+        return response()->json($response);
+    }
+
+    public function uploadFile($request, $field, $serviceId)
+    {
+        $fileName = null;
+        if ($request->hasFile($field)) {
+            $file = $request->file($field);
+            $extension = $file->getClientOriginalName();
+            $fileName = time() . '.' . $extension;;
+            $file->move('materials-doc/', $fileName);
+        }
+        return $fileName;
+    }
+
+    public function approvedByStatus(Request $request)
+    {
+        $user = \Auth()->user();
+        $status = $request->status_id;
+        $material_id = $request->material_id;
+        $nv_id = $request->nv_id;
+        $id = $nv_id;
+        $remark = $request->remark;
+        $dop_ref_no = $request->dop_ref_no;
+        $check_ceonm2 = $request->check_ceonm2 ?? null;
+        $check_technology = 1;
+        $derc_info = $request->derc_info;
+
+        $file = $request->file('file') ?? null;
+        if (!empty($file)) {
+            $filePath = $file->getClientOriginalName();
+            $filePaths = public_path('approval-remark/' . $filePath);
+
+            if (!File::exists($filePaths)) {
+                $file->move(public_path('approval-remark/'), $filePath);
+            }
+        }
+
+        $employees = Employee::where("user_id", $user->id)->first();
+        $departmentIds = explode(',', $employees->department_id);
+        $departments = Department::whereIn("id", $departmentIds)->get();
+        $nv12 = NeedValidation::where('id', $request->nv_id)->orderBy('id', 'desc')->first();
+
+        $datas = NVMaterial::where('nv_id', $id)->orderBy('id', 'desc')->first();
+        // $employs = Employee::with('department')->where("user_id", $datas->user_id)->first();
+        $employs = NeedValidation::with('department')->where("id", $request->nv_id)->first();
+        if ($employs && $employs->department) {
+            $department = $employs->department;
+            $hod = $department->dep_hod;
+            $rv1 = $department->dep_rew1;
+            $rv2 = $department->dep_rew2;
+            $rv3 = $department->dep_rew3;
+            $rv4 = $department->dep_rew4;
+            $group_cio = $department->group_cio;
+        } else {
+            $hod = $rv1 = $rv2 = $rv3 = $rv4 = $group_cio = null;
+        }
+        $id0 = Workflow::where("id", 1)->first();
+        $id1 = Workflow::skip(1)->first();
+        $id2 = Workflow::skip(2)->first();
+        // $id3 = Workflow::skip(3)->first();
+        $id3 = OpexWorkflow::where("id", 1)->first();
+        if ($nv12->budget_type == "CAPEX") {
+            $id4 = Workflow::skip(3)->first();
+
+            $id5 = Workflow::skip(4)->first();
+        } else {
+            $id4 = OpexWorkflow::skip(1)->first();
+            $id5 = OpexWorkflow::skip(2)->first();
+        }
+        $tble_material = NVMaterial::where('id', $material_id)->first();
+
+        if ($status == 'Approve') {
+            $status = 1;
+        } elseif ($status == 'Reject') {
+            $status = 2;
+        } else {
+            $status = 0;
+        }
+        
+        if (!empty($rv1) && $rv1 == $user->id) {
+            $update_status = Nvsericestatus::where('material_id', $material_id)->first();
+            $update_status->update([
+                'rv1_id' => $user->id,
+                'rv1_status' => $status,
+                'rv1_timestamp' => date('Y-m-d H:i'),
+                'rv1_action_ip' => request()->ip(),
+                'rv1_remark' => $remark,
+                'rv1_attachement' => $filePath ?? null
+            ]);
+
+            $initiated_date = NVMaterial::select('created_at')->where('id', $material_id)->first();
+            $initiated_by = User::select('name', 'id')->where('id', $tble_material->user_id)->first();
+            $user = User::select('email')->where('id', $tble_material->user_id)->first();
+            $approved = Nvsericestatus::where('material_id', $material_id)->first();
+            $approved_by = User::select('name', 'id', 'email')->where('id', $approved->rv1_id)->first();
+            $approved_date = Nvsericestatus::select('rv1_timestamp')->where('material_id', $material_id)->first();
+
+            $user_id = Auth::user()->id;
+            $nv_id = $request->nv_id;
+            $nv_type = NeedValidation::where('id', $nv_id)->first();
+            $employee = Employee::where('user_id', $user_id)->first();
+            $depart = Department::where("id",  $nv_type->department_id)->first();
+
+            $ini_date = NVMaterial::where('nv_id', $nv_id)->first();
+            $ini_by =  Employee::where('user_id', $ini_date->user_id)->first();
+
+            $name = $approved_by->name;
+            $date = $approved_date->rv1_timestamp;
+
+            if ($department->dep_rew2 === null) {
+                $emp_rv = Employee::where('user_id', $department->dep_rew3)->first();
+
+                if ($department->dep_rew3 === null) {
+                    $emp_rv = Employee::where('user_id', $department->dep_rew4)->first();
+                    if ($department->dep_rew4 === null) {
+                        $emp_rv = Employee::where('user_id', $department->dep_hod)->first();
+                    } else {
+                        $emp_rv = Employee::where('user_id', $department->dep_rew_4)->first();
+                    }
+                } else {
+                    $emp_rv = Employee::where('user_id', $department->dep_rew3)->first();
+                }
+            } else {
+                $emp_rv = Employee::where('user_id', $department->dep_rew2)->first();
+            }
+
+            if ($status == 1) {
+                $status = "Approved";
+            } elseif ($status == 2) {
+                $status = "Rejected";
+                $update_draft = NVMaterial::where('id', $material_id)->first();
+                $update_draft->update([
+                    'draft' => '0',
+                ]);
+                Nvsericestatus::where('material_id', $material_id)
+                    ->update(['is_reject' => 1]);
+                $nv = NeedValidation::where('id', $request->nv_id)->first();
+                if ($nv->budgetary_provision == "Approved") {
+                    $nvmaterial = NVMaterial::where('id', $material_id)->first();
+                    $budget = budget::where('fiscal_year', $nv->fiscal_year)->where('dept_id', $nv->department_id)->where('budget_type', $nv->budget_type)->first();
+                    $total = $budget->total_budget - $nvmaterial->approved_budget;
+                    $budget = budget::where('fiscal_year', $nv->fiscal_year)->where('dept_id', $nv->department_id)->where('budget_type', $nv->budget_type)->update([
+                        'total_budget' => $total ?? '',
+                    ]);
+                }
+            }
+
+            $p1 = "You have a new request that requires your approval:";
+            $p2 = "Please review the request and take appropriate action.";
+            $serviceType = ($nv_type->service_id == 1) ? 'Material' : 'Service';
+            $subject = "Your NV (NV/{$nv_type->budget_type}/{$nv_type->fiscal_year}/{$depart->name}/{$serviceType}/{$nv_type->id}) has been {$status}";
+            $to_emails = $user->email;
+            Mail::send('emailtemp.initiator_mail', ['username' => 'user', 'initiated_date' => $initiated_date, 'initiated_by' => $initiated_by, 'name' => $name, 'ini_date' => $ini_date, 'ini_by' => $ini_by, 'p1' => $p1, 'p2' => $p2, 'nv_type' => $nv_type, 'remark' => $remark ?? '', 'department' => $depart, 'status' => $status,], function ($message) use ($to_emails, $subject) {
+                $message->from(env('MAIL_FROM_ADDRESS'), 'NV');
+                $message->to($to_emails);
+                $message->subject($subject);
+            });
+
+            $p1 = "Your nv request has been Rejected:";
+            $p2 = "";
+            $to_emails = $emp_rv->email;
+            Mail::send('emailtemp.doc_mail', ['username' => 'user', 'initiated_date' => $initiated_date, 'initiated_by' => $initiated_by, 'ini_date' => $ini_date, 'ini_by' => $ini_by, 'p1' => $p1, 'p2' => $p2, 'date' => $date, 'name' => $name, 'status' => $status, 'department' => $depart, 'nv_type' => $nv_type,], function ($message) use ($to_emails) {
+                $message->from(env('MAIL_FROM_ADDRESS'), 'NV');
+                $message->to($to_emails);
+                $message->subject("Need Validation Status Update : Seeking your validation");
+            });
+        } elseif (!empty($rv2) && $rv2 == $user->id) {
+
+            $update_status = Nvsericestatus::where('material_id', $material_id)->first();
+            $update_status->update([
+                'rv2_id' => $user->id,
+                'rv2_status' => $status,
+                'rv2_timestamp' => date('Y-m-d H:i'),
+                'rv2_action_ip' => request()->ip(),
+                'rv2_remark' => $remark,
+                'rv2_attachement' => $filePath ?? null
+            ]);
+            $initiated_date = NVMaterial::select('created_at')->where('id', $material_id)->first();
+            $initiated_by = User::select('name', 'id')->where('id', $tble_material->user_id)->first();
+            $user = User::select('email')->where('id', $tble_material->user_id)->first();
+            $approved = Nvsericestatus::where('material_id', $material_id)->first();
+            $approved_by = User::select('name', 'id', 'email')->where('id', $approved->rv2_id)->first();
+            $approved_date = Nvsericestatus::select('rv2_timestamp')->where('material_id', $material_id)->first();
+
+            $name = $approved_by->name;
+            $date = $approved_date->rv2_timestamp;
+
+            $user_id = Auth::user()->id;
+            $nv_id = $request->nv_id;
+            $nv_type = NeedValidation::where('id', $nv_id)->first();
+            $employee = Employee::where('user_id', $user_id)->first();
+            $depart = Department::where("id",  $nv_type->department_id)->first();
+            $ini_date = NVMaterial::where('nv_id', $nv_id)->first();
+            $ini_by =  Employee::where('user_id', $ini_date->user_id)->first();
+
+            if ($department->dep_rew3 === null) {
+                $emp_rv = Employee::where('user_id', $department->dep_rew4)->first();
+                if ($department->dep_rew4 === null) {
+                    $emp_rv = Employee::where('user_id', $department->dep_hod)->first();
+                } else {
+                    $emp_rv = Employee::where('user_id', $department->dep_rew_4)->first();
+                }
+            } else {
+                $emp_rv = Employee::where('user_id', $department->dep_rew3)->first();
+            }
+
+            if ($status == 1) {
+                $status = "Approved";
+            } elseif ($status == 2) {
+                $status = "Rejected";
+                $update_draft = NVMaterial::where('id', $material_id)->first();
+                $update_draft->update([
+                    'draft' => '0',
+                ]);
+                Nvsericestatus::where('material_id', $material_id)
+                    ->update(['is_reject' => 1]);
+                $nv = NeedValidation::where('id', $request->nv_id)->first();
+                if ($nv->budgetary_provision == "Approved") {
+                    $nvmaterial = NVMaterial::where('id', $material_id)->first();
+                    $budget = budget::where('fiscal_year', $nv->fiscal_year)->where('dept_id', $nv->department_id)->where('budget_type', $nv->budget_type)->first();
+                    $total = $budget->total_budget - $nvmaterial->approved_budget;
+                    $budget = budget::where('fiscal_year', $nv->fiscal_year)->where('dept_id', $nv->department_id)->where('budget_type', $nv->budget_type)->update([
+                        'total_budget' => $total ?? '',
+                    ]);
+                }
+            }
+
+            $p1 = "You have a new request that requires your approval:";
+            $p2 = "Please review the request and take appropriate action.";
+            $serviceType = ($nv_type->service_id == 1) ? 'Material' : 'Service';
+            $subject = "Your NV (NV/{$nv_type->budget_type}/{$nv_type->fiscal_year}/{$depart->name}/{$serviceType}/{$nv_type->id}) has been {$status}";
+            $to_emails = $user->email;
+            Mail::send('emailtemp.initiator_mail', ['username' => 'user', 'initiated_date' => $initiated_date, 'initiated_by' => $initiated_by, 'name' => $name, 'ini_date' => $ini_date, 'ini_by' => $ini_by, 'p1' => $p1, 'p2' => $p2, 'nv_type' => $nv_type, 'remark' => $remark ?? '', 'department' => $depart, 'status' => $status,], function ($message) use ($to_emails, $subject) {
+                $message->from(env('MAIL_FROM_ADDRESS'), 'NV');
+                $message->to($to_emails);
+                $message->subject($subject);
+            });
+
+            $p1 = "Your nv request has been Rejected:";
+            $p2 = "";
+            $to_emails = $emp_rv->email;
+            Mail::send('emailtemp.doc_mail', ['username' => 'user', 'initiated_date' => $initiated_date, 'initiated_by' => $initiated_by, 'ini_date' => $ini_date, 'ini_by' => $ini_by, 'p1' => $p1, 'p2' => $p2, 'date' => $date, 'name' => $name, 'status' => $status, 'department' => $depart, 'nv_type' => $nv_type,], function ($message) use ($to_emails) {
+                $message->from(env('MAIL_FROM_ADDRESS'), 'NV');
+                $message->to($to_emails);
+                $message->subject("Need Validation Status Update : Seeking your validation");
+            });
+        } elseif (!empty($rv3) && $rv3 == $user->id) {
+            $update_status = Nvsericestatus::where('material_id', $material_id)->first();
+            $update_status->update([
+                'rv3_id' => $user->id,
+                'rv3_status' => $status,
+                'rv3_timestamp' => date('Y-m-d H:i'),
+                'rv3_action_ip' => request()->ip(),
+                'rv3_remark' => $remark,
+                'rv3_attachement' => $filePath ?? null
+            ]);
+            $initiated_date = NVMaterial::select('created_at')->where('id', $material_id)->first();
+            $initiated_by = User::select('name', 'id')->where('id', $tble_material->user_id)->first();
+            $user = User::select('email')->where('id', $tble_material->user_id)->first();
+            $approved = Nvsericestatus::where('material_id', $material_id)->first();
+            $approved_by = User::select('name', 'id', 'email')->where('id', $approved->rv3_id)->first();
+            $approved_date = Nvsericestatus::select('rv3_timestamp')->where('material_id', $material_id)->first();
+
+            $name = $approved_by->name;
+            $date = $approved_date->rv3_timestamp;
+
+            $user_id = Auth::user()->id;
+            $nv_id = $request->nv_id;
+            $nv_type = NeedValidation::where('id', $nv_id)->first();
+            $employee = Employee::where('user_id', $user_id)->first();
+            $depart = Department::where("id",  $nv_type->department_id)->first();
+            $ini_date = NVMaterial::where('nv_id', $nv_id)->first();
+            $ini_by =  Employee::where('user_id', $ini_date->user_id)->first();
+
+            if ($department->dep_rew4 === null) {
+                $emp_rv = Employee::where('user_id', $department->dep_hod)->first();
+            } else {
+                $emp_rv = Employee::where('user_id', $department->dep_rew4)->first();
+            }
+
+            if ($status == 1) {
+                $status = "Approved";
+            } elseif ($status == 2) {
+                $status = "Rejected";
+                $update_draft = NVMaterial::where('id', $material_id)->first();
+                $update_draft->update([
+                    'draft' => '0',
+                ]);
+                Nvsericestatus::where('material_id', $material_id)
+                    ->update(['is_reject' => 1]);
+                $nv = NeedValidation::where('id', $request->nv_id)->first();
+                if ($nv->budgetary_provision == "Approved") {
+                    $nvmaterial = NVMaterial::where('id', $material_id)->first();
+                    $budget = budget::where('fiscal_year', $nv->fiscal_year)->where('dept_id', $nv->department_id)->where('budget_type', $nv->budget_type)->first();
+                    $total = $budget->total_budget - $nvmaterial->approved_budget;
+                    $budget = budget::where('fiscal_year', $nv->fiscal_year)->where('dept_id', $nv->department_id)->where('budget_type', $nv->budget_type)->update([
+                        'total_budget' => $total ?? '',
+                    ]);
+                }
+            }
+
+            $p1 = "You have a new request that requires your approval:";
+            $p2 = "Please review the request and take appropriate action.";
+            $serviceType = ($nv_type->service_id == 1) ? 'Material' : 'Service';
+            $subject = "Your NV (NV/{$nv_type->budget_type}/{$nv_type->fiscal_year}/{$depart->name}/{$serviceType}/{$nv_type->id}) has been {$status}";
+            $to_emails = $user->email;
+            Mail::send('emailtemp.initiator_mail', ['username' => 'user', 'initiated_date' => $initiated_date, 'initiated_by' => $initiated_by, 'name' => $name, 'ini_date' => $ini_date, 'ini_by' => $ini_by, 'p1' => $p1, 'p2' => $p2, 'nv_type' => $nv_type, 'remark' => $remark ?? '', 'department' => $depart, 'status' => $status,], function ($message) use ($to_emails, $subject) {
+                $message->from(env('MAIL_FROM_ADDRESS'), 'NV');
+                $message->to($to_emails);
+                $message->subject($subject);
+            });
+
+            $p1 = "Your nv request has been Rejected:";
+            $p2 = "";
+            $to_emails = $emp_rv->email;
+            Mail::send('emailtemp.doc_mail', ['username' => 'user', 'initiated_date' => $initiated_date, 'initiated_by' => $initiated_by, 'ini_date' => $ini_date, 'ini_by' => $ini_by, 'p1' => $p1, 'p2' => $p2, 'date' => $date, 'name' => $name, 'status' => $status, 'department' => $depart, 'nv_type' => $nv_type,], function ($message) use ($to_emails) {
+                $message->from(env('MAIL_FROM_ADDRESS'), 'NV');
+                $message->to($to_emails);
+                $message->subject("Need Validation Status Update : Seeking your validation");
+            });
+        } elseif (!empty($rv4) && $rv4 == $user->id) {
+            $update_status = Nvsericestatus::where('material_id', $material_id)->first();
+            $update_status->update([
+                'rv4_id' => $user->id,
+                'rv4_status' => $status,
+                'rv4_timestamp' => date('Y-m-d H:i'),
+                'rv4_action_ip' => request()->ip(),
+                'rv4_remark' => $remark,
+                'rv4_attachement' => $filePath ?? null
+
+            ]);
+            $initiated_date = NVMaterial::select('created_at')->where('id', $material_id)->first();
+            $initiated_by = User::select('name', 'id')->where('id', $tble_material->user_id)->first();
+            $user = User::select('email')->where('id', $tble_material->user_id)->first();
+            $approved = Nvsericestatus::where('material_id', $material_id)->first();
+            $approved_by = User::select('name', 'id', 'email')->where('id', $approved->rv4_id)->first();
+            $approved_date = Nvsericestatus::select('rv4_timestamp')->where('material_id', $material_id)->first();
+
+            $name = $approved_by->name;
+            $date = $approved_date->rv4_timestamp;
+
+            $user_id = Auth::user()->id;
+            $nv_id = $request->nv_id;
+            $nv_type = NeedValidation::where('id', $nv_id)->first();
+            $employee = Employee::where('user_id', $user_id)->first();
+            $depart = Department::where("id",  $nv_type->department_id)->first();
+            $ini_date = NVMaterial::where('nv_id', $nv_id)->first();
+            $ini_by =  Employee::where('user_id', $ini_date->user_id)->first();
+
+            $emp_rv = Employee::where('user_id', $department->dep_hod)->first();
+            if ($status == 1) {
+                $status = "Approved";
+            } elseif ($status == 2) {
+                $status = "Rejected";
+                $update_draft = NVMaterial::where('id', $material_id)->first();
+                $update_draft->update([
+                    'draft' => '0',
+                ]);
+                Nvsericestatus::where('material_id', $material_id)
+                    ->update(['is_reject' => 1]);
+                $nv = NeedValidation::where('id', $request->nv_id)->first();
+                if ($nv->budgetary_provision == "Approved") {
+                    $nvmaterial = NVMaterial::where('id', $material_id)->first();
+                    $budget = budget::where('fiscal_year', $nv->fiscal_year)->where('dept_id', $nv->department_id)->where('budget_type', $nv->budget_type)->first();
+                    $total = $budget->total_budget - $nvmaterial->approved_budget;
+                    $budget = budget::where('fiscal_year', $nv->fiscal_year)->where('dept_id', $nv->department_id)->where('budget_type', $nv->budget_type)->update([
+                        'total_budget' => $total ?? '',
+                    ]);
+                }
+            }
+
+            $p1 = "You have a new request that requires your approval:";
+            $p2 = "Please review the request and take appropriate action.";
+            $serviceType = ($nv_type->service_id == 1) ? 'Material' : 'Service';
+            $subject = "Your NV (NV/{$nv_type->budget_type}/{$nv_type->fiscal_year}/{$depart->name}/{$serviceType}/{$nv_type->id}) has been {$status}";
+            $to_emails = $user->email;
+            Mail::send('emailtemp.initiator_mail', ['username' => 'user', 'initiated_date' => $initiated_date, 'initiated_by' => $initiated_by, 'name' => $name, 'ini_date' => $ini_date, 'ini_by' => $ini_by, 'p1' => $p1, 'p2' => $p2, 'nv_type' => $nv_type, 'remark' => $remark ?? '', 'department' => $depart, 'status' => $status,], function ($message) use ($to_emails, $subject) {
+                $message->from(env('MAIL_FROM_ADDRESS'), 'NV');
+                $message->to($to_emails);
+                $message->subject($subject);
+            });
+            $p1 = "Your nv request has been Rejected:";
+            $p2 = "";
+            $to_emails = $emp_rv->email;
+            Mail::send('emailtemp.doc_mail', ['username' => 'user', 'initiated_date' => $initiated_date, 'initiated_by' => $initiated_by, 'ini_date' => $ini_date, 'ini_by' => $ini_by, 'p1' => $p1, 'p2' => $p2, 'date' => $date, 'name' => $name, 'status' => $status, 'department' => $depart, 'nv_type' => $nv_type,], function ($message) use ($to_emails) {
+                $message->from(env('MAIL_FROM_ADDRESS'), 'NV');
+                $message->to($to_emails);
+                $message->subject("Need Validation Status Update : Seeking your validation");
+            });
+        } elseif (!empty($hod) && $hod == $user->id) {
+            $update_status = Nvsericestatus::where('material_id', $material_id)->first();
+            $updateData = [
+                'hod_id' => $user->id,
+                'hod_status' => $status,
+                'hod_timestamp' => date('Y-m-d H:i'),
+                'hod_action_ip' => request()->ip(),
+                'hod_remark' => $remark,
+                'hod_attachement' => $filePath ?? null
+            ];
+
+            $update_status->update($updateData);
+
+            if (($group_cio === null || $group_cio === '') && $status == 1) {
+                $workflows = Workflow::where('status', 1)->get();
+                $opex_workflows = OpexWorkflow::where('status', 1)->get();
+
+                if ($nv12->budget_type == 'CAPEX' && $workflows->isNotEmpty()) {
+                    $workflow_serial = 1;
+                    $first_user_id = null;
+
+                    foreach ($workflows->sortBy('sr_no')->groupBy('sr_no') as $sr_no => $records) {
+                        $hasInsert = false;
+
+                        foreach ($records as $record) {
+                            $commonData = [
+                                'nv_id'         => $nv_id,
+                                'material_id'   => $material_id,
+                                'department_id' => $record->work_dep,
+                                'sr_no'         => $record->sr_no,
+                                'nv_stage_status' => 0,
+                                'created_at'    => now(),
+                                'updated_at'    => now(),
+                                'nv_budget_type'   => $nv12->budget_type,
+                            ];
+                            for ($i = 1; $i <= 4; $i++) {
+                                $field = 'work_rew' . $i;
+
+                                if (!empty($record->$field)) {
+                                    DB::table('capex_workflows_status')->insert(
+                                        array_merge($commonData, [
+                                            'workflow_user_id' => $record->$field,
+                                            'reviewer_name'    => $field,
+                                            'workflow_serial'  => $workflow_serial,
+
+                                        ])
+
+                                    );
+                                    $hasInsert = true;
+                                }
+                            }
+                            if (!empty($record->approver)) {
+                                DB::table('capex_workflows_status')->insert(
+                                    array_merge($commonData, [
+                                        'workflow_user_id' => $record->approver,
+                                        'reviewer_name'    => 'approver',
+                                        'workflow_serial'  => $workflow_serial,
+
+                                    ])
+
+                                );
+                                $hasInsert = true;
+
+                                if ($workflow_serial == 1 && $first_user_id === null) {
+                                    $first_user_id = $record->approver;
+                                }
+                            }
+                        }
+                        if ($hasInsert) {
+                            $workflow_serial++;
+                        }
+                    }
+                } elseif ($nv12->budget_type == 'OPEX' && $opex_workflows->isNotEmpty()) {
+                    $workflow_serial = 1;
+                    $first_user_id = null;
+
+                    foreach ($opex_workflows->sortBy('sr_no')->groupBy('sr_no') as $sr_no => $records) {
+                        $hasInsert = false;
+
+                        foreach ($records as $record) {
+                            $commonData = [
+                                'nv_id'         => $nv_id,
+                                'material_id'   => $material_id,
+                                'department_id' => $record->work_dep,
+                                'sr_no'         => $record->sr_no,
+                                'nv_stage_status' => 0,
+                                'created_at'    => now(),
+                                'updated_at'    => now(),
+                                'nv_budget_type'   => $nv12->budget_type,
+                            ];
+                            for ($i = 1; $i <= 4; $i++) {
+                                $field = 'work_rew' . $i;
+
+                                if (!empty($record->$field)) {
+                                    DB::table('capex_workflows_status')->insert(
+                                        array_merge($commonData, [
+                                            'workflow_user_id' => $record->$field,
+                                            'reviewer_name'    => $field,
+                                            'workflow_serial'  => $workflow_serial,
+
+                                        ])
+                                    );
+                                    $hasInsert = true;
+                                }
+                            }
+                            if (!empty($record->approver)) {
+                                DB::table('capex_workflows_status')->insert(
+                                    array_merge($commonData, [
+                                        'workflow_user_id' => $record->approver,
+                                        'reviewer_name'    => 'approver',
+                                        'workflow_serial'  => $workflow_serial,
+
+                                    ])
+                                );
+                                $hasInsert = true;
+
+                                if ($workflow_serial == 1 && $first_user_id === null) {
+                                    $first_user_id = $record->approver;
+                                }
+                            }
+                        }
+                        if ($hasInsert) {
+                            $workflow_serial++;
+                        }
+                    }
+                }
+            }
+
+            $initiated_date = NVMaterial::select('created_at')->where('id', $material_id)->first();
+
+            $initiated_by = User::select('name', 'id')->where('id', $tble_material->user_id)->first();
+            $user = User::select('email')->where('id', $tble_material->user_id)->first();
+            $approved = Nvsericestatus::where('material_id', $material_id)->first();
+            $approved_by = User::select('name', 'id', 'email')->where('id', $approved->hod_id)->first();
+            $approved_date = Nvsericestatus::select('hod_timestamp')->where('material_id', $material_id)->first();
+
+            $name = $approved_by->name;
+            $date = $approved_date->hod_timestamp;
+
+            $user_id = Auth::user()->id;
+            $nv_id = $request->nv_id;
+            $nv_type = NeedValidation::where('id', $nv_id)->first();
+            $employee = Employee::where('user_id', $user_id)->first();
+            $depart = Department::where("id",  $nv_type->department_id)->first();
+            $ini_date = NVMaterial::where('nv_id', $nv_id)->first();
+            $ini_by =  Employee::where('user_id', $ini_date->user_id)->first();
+
+            if (!empty($group_cio)) {
+                $emp_rv = User::select('email')->where('id', $group_cio)->first();
+            } else {
+                if (!empty($first_user_id)) {
+                    $emp_rv = User::select('email')->where('id', $first_user_id)->first();
+                }
+            }
+
+            if ($status == 1) {
+                $status = "Approved";
+            } elseif ($status == 2) {
+                $status = "Rejected";
+                $update_draft = NVMaterial::where('id', $material_id)->first();
+                $update_draft->update([
+                    'draft' => '0',
+                ]);
+                Nvsericestatus::where('material_id', $material_id)
+                    ->update(['is_reject' => 1]);
+                $nv = NeedValidation::where('id', $request->nv_id)->first();
+                if ($nv->budgetary_provision == "Approved") {
+                    $nvmaterial = NVMaterial::where('id', $material_id)->first();
+                    $budget = budget::where('fiscal_year', $nv->fiscal_year)->where('dept_id', $nv->department_id)->where('budget_type', $nv->budget_type)->first();
+                    $total = $budget->total_budget - $nvmaterial->approved_budget;
+                    $budget = budget::where('fiscal_year', $nv->fiscal_year)->where('dept_id', $nv->department_id)->where('budget_type', $nv->budget_type)->update([
+                        'total_budget' => $total ?? '',
+                    ]);
+                }
+            }
+
+            $p1 = "You have a new request that requires your approval:";
+            $p2 = "Please review the request and take appropriate action.";
+            $serviceType = ($nv_type->service_id == 1) ? 'Material' : 'Service';
+            $subject = "Your NV (NV/{$nv_type->budget_type}/{$nv_type->fiscal_year}/{$depart->name}/{$serviceType}/{$nv_type->id}) has been {$status}";
+            $to_emails = $user->email;
+            Mail::send('emailtemp.initiator_mail', ['username' => 'user', 'initiated_date' => $initiated_date, 'initiated_by' => $initiated_by, 'name' => $name, 'ini_date' => $ini_date, 'ini_by' => $ini_by, 'p1' => $p1, 'p2' => $p2, 'nv_type' => $nv_type, 'remark' => $remark ?? '', 'department' => $depart, 'status' => $status,], function ($message) use ($to_emails, $subject) {
+                $message->from(env('MAIL_FROM_ADDRESS'), 'NV');
+                $message->to($to_emails);
+                $message->subject($subject);
+            });
+
+            $p1 = "Your nv request has been Rejected:";
+            $p2 = "";
+            $to_emails = $emp_rv->email;
+            if (!empty($emp_rv->email)) {
+                Mail::send('emailtemp.doc_mail', ['username' => 'user', 'initiated_date' => $initiated_date, 'initiated_by' => $initiated_by, 'ini_date' => $ini_date, 'ini_by' => $ini_by, 'p1' => $p1, 'p2' => $p2, 'date' => $date, 'name' => $name, 'status' => $status, 'department' => $depart, 'nv_type' => $nv_type,], function ($message) use ($to_emails) {
+                    $message->from(env('MAIL_FROM_ADDRESS'), 'NV');
+                    $message->to($to_emails);
+                    $message->subject("Need Validation Status Update : Seeking your validation");
+                });
+            }
+        } elseif (!empty($group_cio) && $group_cio == $user->id) {
+            $update_status = Nvsericestatus::where('material_id', $material_id)->first();
+            $updateData = [
+                'groupcio_id' => $user->id,
+                'groupcio_status' => $status,
+                'groupcio_timestamp' => date('Y-m-d H:i'),
+                'groupcio_action_ip' => request()->ip(),
+                'groupcio_remark' => $remark,
+                'groupcio_attachement' => $filePath ?? null,
+            ];
+
+            $update_status->update($updateData);
+
+            $workflows = Workflow::where('status', 1)->get();
+            $opex_workflows = OpexWorkflow::where('status', 1)->get();
+
+            if ($status == 1) {
+                if ($nv12->budget_type == 'CAPEX' && $workflows->isNotEmpty()) {
+                    $workflow_serial = 1;
+                    $first_user_id = null;
+
+                    foreach ($workflows->sortBy('sr_no')->groupBy('sr_no') as $sr_no => $records) {
+                        $hasInsert = false;
+
+                        foreach ($records as $record) {
+                            $commonData = [
+                                'nv_id'         => $nv_id,
+                                'material_id'   => $material_id,
+                                'department_id' => $record->work_dep,
+                                'sr_no'         => $record->sr_no,
+                                'nv_stage_status' => 0,
+                                'created_at'    => now(),
+                                'updated_at'    => now(),
+                                'nv_budget_type'   => $nv12->budget_type,
+                            ];
+                            for ($i = 1; $i <= 4; $i++) {
+                                $field = 'work_rew' . $i;
+
+                                if (!empty($record->$field)) {
+                                    DB::table('capex_workflows_status')->insert(
+                                        array_merge($commonData, [
+                                            'workflow_user_id' => $record->$field,
+                                            'reviewer_name'    => $field,
+                                            'workflow_serial'  => $workflow_serial,
+
+                                        ])
+                                    );
+                                    $hasInsert = true;
+                                }
+                            }
+                            if (!empty($record->approver)) {
+                                DB::table('capex_workflows_status')->insert(
+                                    array_merge($commonData, [
+                                        'workflow_user_id' => $record->approver,
+                                        'reviewer_name'    => 'approver',
+                                        'workflow_serial'  => $workflow_serial,
+
+                                    ])
+                                );
+                                $hasInsert = true;
+
+                                if ($workflow_serial == 1 && $first_user_id === null) {
+                                    $first_user_id = $record->approver;
+                                }
+                            }
+                        }
+                        if ($hasInsert) {
+                            $workflow_serial++;
+                        }
+                    }
+                } elseif ($nv12->budget_type == 'OPEX' && $opex_workflows->isNotEmpty()) {
+                    $workflow_serial = 1;
+                    $first_user_id = null;
+                    foreach ($opex_workflows->sortBy('sr_no')->groupBy('sr_no') as $sr_no => $records) {
+                        $hasInsert = false;
+
+                        foreach ($records as $record) {
+                            $commonData = [
+                                'nv_id'         => $nv_id,
+                                'material_id'   => $material_id,
+                                'department_id' => $record->work_dep,
+                                'sr_no'         => $record->sr_no,
+                                'nv_stage_status' => 0,
+                                'created_at'    => now(),
+                                'updated_at'    => now(),
+                                'nv_budget_type'   => $nv12->budget_type,
+                            ];
+                            for ($i = 1; $i <= 4; $i++) {
+                                $field = 'work_rew' . $i;
+
+                                if (!empty($record->$field)) {
+                                    DB::table('capex_workflows_status')->insert(
+                                        array_merge($commonData, [
+                                            'workflow_user_id' => $record->$field,
+                                            'reviewer_name'    => $field,
+                                            'workflow_serial'  => $workflow_serial,
+
+                                        ])
+                                    );
+                                    $hasInsert = true;
+                                }
+                            }
+                            if (!empty($record->approver)) {
+                                DB::table('capex_workflows_status')->insert(
+                                    array_merge($commonData, [
+                                        'workflow_user_id' => $record->approver,
+                                        'reviewer_name'    => 'approver',
+                                        'workflow_serial'  => $workflow_serial,
+
+                                    ])
+                                );
+                                $hasInsert = true;
+
+                                if ($workflow_serial == 1 && $first_user_id === null) {
+                                    $first_user_id = $record->approver;
+                                }
+                            }
+                        }
+                        if ($hasInsert) {
+                            $workflow_serial++;
+                        }
+                    }
+                }
+            }
+
+
+            $initiated_date = NVMaterial::select('created_at')->where('id', $material_id)->first();
+            $initiated_by = User::select('name', 'id')->where('id', $tble_material->user_id)->first();
+            $user = User::select('email')->where('id', $tble_material->user_id)->first();
+            $approved = Nvsericestatus::where('material_id', $material_id)->first();
+            $approved_by = User::select('name', 'id', 'email')->where('id', $approved->groupcio_id)->first();
+            $approved_date = Nvsericestatus::select('groupcio_timestamp')->where('material_id', $material_id)->first();
+
+            $name = $approved_by->name;
+            $date = $approved_date->groupcio_timestamp;
+
+            $user_id = Auth::user()->id;
+            $nv_id = $request->nv_id;
+            $nv_type = NeedValidation::where('id', $nv_id)->first();
+            $employee = Employee::where('user_id', $user_id)->first();
+            $depart = Department::where("id",  $nv_type->department_id)->first();
+            $ini_date = NVMaterial::where('nv_id', $nv_id)->first();
+            $ini_by =  Employee::where('user_id', $ini_date->user_id)->first();
+
+            if (!empty($first_user_id)) {
+                $emp_rv = User::select('email')->where('id', $first_user_id)->first();
+            }
+
+            if ($status == 1) {
+                $status = "Approved";
+            } elseif ($status == 2) {
+                $status = "Rejected";
+                $update_draft = NVMaterial::where('id', $material_id)->first();
+                $update_draft->update([
+                    'draft' => '0',
+                ]);
+                Nvsericestatus::where('material_id', $material_id)
+                    ->update(['is_reject' => 1]);
+                $nv = NeedValidation::where('id', $request->nv_id)->first();
+                if ($nv->budgetary_provision == "Approved") {
+                    $nvmaterial = NVMaterial::where('id', $material_id)->first();
+                    $budget = budget::where('fiscal_year', $nv->fiscal_year)->where('dept_id', $nv->department_id)->where('budget_type', $nv->budget_type)->first();
+                    $total = $budget->total_budget - $nvmaterial->approved_budget;
+                    $budget = budget::where('fiscal_year', $nv->fiscal_year)->where('dept_id', $nv->department_id)->where('budget_type', $nv->budget_type)->update([
+                        'total_budget' => $total ?? '',
+                    ]);
+                }
+            }
+
+            $p1 = "You have a new request that requires your approval:";
+            $p2 = "Please review the request and take appropriate action.";
+            $serviceType = ($nv_type->service_id == 1) ? 'Material' : 'Service';
+            $subject = "Your NV (NV/{$nv_type->budget_type}/{$nv_type->fiscal_year}/{$depart->name}/{$serviceType}/{$nv_type->id}) has been {$status}";
+            $to_emails = $user->email;
+            Mail::send('emailtemp.initiator_mail', ['username' => 'user', 'initiated_date' => $initiated_date, 'initiated_by' => $initiated_by, 'name' => $name, 'ini_date' => $ini_date, 'ini_by' => $ini_by, 'p1' => $p1, 'p2' => $p2, 'nv_type' => $nv_type, 'remark' => $remark ?? '', 'department' => $depart, 'status' => $status,], function ($message) use ($to_emails, $subject) {
+                $message->from(env('MAIL_FROM_ADDRESS'), 'NV');
+                $message->to($to_emails);
+                $message->subject($subject);
+            });
+
+            $p1 = "Your nv request has been Rejected:";
+            $p2 = "";
+            $to_emails = $emp_rv->email;
+            if (!empty($emp_rv->email)) {
+                Mail::send('emailtemp.doc_mail', ['username' => 'user', 'initiated_date' => $initiated_date, 'initiated_by' => $initiated_by, 'ini_date' => $ini_date, 'ini_by' => $ini_by, 'p1' => $p1, 'p2' => $p2, 'date' => $date, 'name' => $name, 'status' => $status, 'department' => $depart, 'nv_type' => $nv_type,], function ($message) use ($to_emails) {
+                    $message->from(env('MAIL_FROM_ADDRESS'), 'NV');
+                    $message->to($to_emails);
+                    $message->subject("Need Validation Status Update : Seeking your validation");
+                });
+            }
+        } else {
+            $workflows = DB::table('capex_workflows_status')
+                ->where('transfer_to_nominee1',0)
+                ->where('material_id', $material_id)
+                ->where('workflow_user_id', $user->id)
+                ->where('department_id', $user->department_id)
+                ->where('nv_budget_type', $nv12->budget_type)
+                ->get();
+       
+            foreach ($workflows as $workflow) {
+            
+                $capexWorkflowUsers = $workflow->workflow_user_id;
+                $reviewer = $workflow->reviewer_name;
+                $workflow_serial    = $workflow->workflow_serial;
+                $budgetType = $workflow->nv_budget_type;
+
+                if (!empty($capexWorkflowUsers) && $capexWorkflowUsers == $user->id) {
+                 
+                    $updateData = [
+                        'nv_stage_status' => $status,
+                        'nv_stage_timestamp' => date('Y-m-d H:i'),
+                        'nv_stage_action_ip' => request()->ip(),
+                        'nv_stage_remark' => $remark,
+                        'nv_stage_attachement' => $filePath ?? null,
+                        'nv_stage_signature' => $user->signature_id ?? null
+                    ];
+
+                   $isReviewer = strtolower($workflow->reviewer_name ?? '') !== 'approver';
+
+                    if ($workflow->reviewer_name != 'approver') {
+
+                        DB::table('capex_workflows_status')
+                            ->where('id', $workflow->id)
+                            ->update($updateData);
+                        $transfer_ceonom1 = $request->transfer_to_nominee1;
+                        // dd($transfer_ceonom1);
+                        if ($transfer_ceonom1 == 1) {
+                            DB::table('capex_workflows_status')
+                                ->where('nv_id', $workflow->nv_id)
+                                ->where('workflow_serial', $workflow_serial)
+                                ->where('reviewer_name', '!=', 'approver')
+                                ->where('workflow_user_id', $user->id) // Fixed: removed '=='
+                                ->update(['nv_stage_status' => $status]);
+                            // Fixed: Added proper where conditions
+                           DB::table('capex_workflows_status')->where('department_id', 16)->update(['nv_stage_status' => 0, 'transfer_to_nominee1' => 1]);
+                        } else {
+                            DB::table('capex_workflows_status')
+                                ->where('nv_id', $workflow->nv_id)
+                                ->where('workflow_serial', $workflow_serial)
+                                ->where('reviewer_name', '!=', 'approver')
+                                ->where('workflow_user_id', $user->id) // Fixed: removed '=='
+                                ->update(['nv_stage_status' => $status]);
+                        }
+                    } else {
+
+                    DB::table('capex_workflows_status')
+                        ->where('id', $workflow->id)
+                        ->where('workflow_user_id', $user->id)
+                        ->update($updateData);
+                    }
+
+
+                    NVMaterial::where('id', $material_id)
+                        ->update(['check_ceonm2' => $check_ceonm2]);
+
+                    if ($status == 1) {
+                        $status = "Approved";
+                        $ceoStage = DB::table('capex_workflows_status as cws')
+                            ->join(
+                                DB::raw('(SELECT nv_id, MAX(workflow_serial) as max_serial
+                                            FROM capex_workflows_status
+                                            GROUP BY nv_id) as latest'),
+                                function ($join) {
+                                    $join->on('cws.nv_id', '=', 'latest.nv_id')
+                                        ->on('cws.workflow_serial', '=', 'latest.max_serial');
+                                }
+                            )
+                            ->where('cws.material_id', $material_id)
+                            ->where('cws.nv_budget_type', $nv12->budget_type)
+                            ->first();
+
+                        if (!empty($ceoStage)) {
+                            if ($ceoStage->workflow_user_id == $user->id) {
+                                Nvsericestatus::where('material_id', $material_id)
+                                    ->update(['ceo_status' => 1]);
+                                $nv = NeedValidation::where('id', $nv_id)->where('delete_draft', 0)->orderBy('id', 'desc')->first();
+
+                                if ($nv->budget_type == "CAPEX") {
+                                    $capex_budget = Capex::where('department_id', $nv->department_id)->first('additional_budget');
+                                    $additional_budget = CapexBudget::where('department_id', $nv->department_id)->where('fiscal_year', $nv->fiscal_year)->first();
+                                } else {
+                                    $opex_budget = Opex::where('department_id', $nv->department_id)->first('additional_budget');
+                                    $additional_budget = OpexBudget::where('department_id', $nv->department_id)->where('fiscal_year', $nv->fiscal_year)->first();
+                                }
+
+                                if ($nv->budget_type == "CAPEX" && $nv->budgetary_provision == "Additional" && $nv->fiscal_year == $additional_budget->fiscal_year) {
+                                    $data = NVMaterial::where('nv_id', $nv->id)->orderBy('id', 'desc')->first("total_budget_both");
+
+                                    if ($additional_budget->additional_budget == null) {
+                                        // dd( $data->total_budget_both);
+                                        $capex_budget_approve =  CapexBudget::where('department_id', $nv->department_id)->where('fiscal_year', $additional_budget->fiscal_year)->update([
+                                            'additional_budget' => $data->total_budget_both
+                                        ]);
+                                    } else {
+                                        $capexbudget =  $additional_budget->additional_budget;
+                                        $total = $capexbudget + $data->total_budget_both;
+                                        $capex_budget_approve =  CapexBudget::where('department_id', $nv->department_id)->where('fiscal_year', $additional_budget->fiscal_year)->update([
+                                            'additional_budget' => $total
+                                        ]);
+                                    }
+                                } elseif ($nv->budget_type == "OPEX" && $nv->budgetary_provision == "Additional" && $nv->fiscal_year == $additional_budget->fiscal_year) {
+                                    $data = NVMaterial::where('nv_id', $nv->id)->orderBy('id', 'desc')->first("total_budget_both");
+
+                                    if ($additional_budget->additional_budget == null) {
+                                        $capex_budget_approve =  OpexBudget::where('department_id', $nv->department_id)->where('fiscal_year', $additional_budget->fiscal_year)->update([
+                                            'additional_budget' => $data->total_budget_both
+                                        ]);
+                                    } else {
+                                        $opexbudget =  $additional_budget->additional_budget;
+                                        $total = $opexbudget + $data->total_budget_both;
+                                        $capex_budget_approve =  OpexBudget::where('department_id', $nv->department_id)->where('fiscal_year', $additional_budget->fiscal_year)->update([
+                                            'additional_budget' => $total
+                                        ]);
+                                    }
+                                } elseif ($nv->budget_type == "OPEX" && $nv->budgetary_provision == "Approved" && $nv->fiscal_year == $additional_budget->fiscal_year) {
+                                    $data = NVMaterial::where('nv_id', $nv->id)->orderBy('id', 'desc')->first("add_budget");
+
+                                    if ($additional_budget->additional_budget == null) {
+                                        $capex_budget_approve =  OpexBudget::where('department_id', $nv->department_id)->where('fiscal_year', $additional_budget->fiscal_year)->update([
+                                            'additional_budget' => $data->add_budget
+                                        ]);
+                                    } else {
+                                        $capexbudget =  $additional_budget->additional_budget;
+                                        $total = $capexbudget + $data->add_budget;
+
+                                        $capex_budget_approve =  OpexBudget::where('department_id', $nv->department_id)->where('fiscal_year', $additional_budget->fiscal_year)->update([
+                                            'additional_budget' => $total
+                                        ]);
+                                    }
+                                } elseif ($nv->budget_type == "CAPEX" && $nv->budgetary_provision == "Approved" && $nv->fiscal_year == $additional_budget->fiscal_year) {
+                                    $data = NVMaterial::where('nv_id', $nv->id)->orderBy('id', 'desc')->first("add_budget");
+
+                                    if ($additional_budget->additional_budget == null) {
+                                        $capex_budget_approve =  CapexBudget::where('department_id', $nv->department_id)->where('fiscal_year', $additional_budget->fiscal_year)->update([
+                                            'additional_budget' => $data->add_budget
+                                        ]);
+                                    } else {
+                                        $capexbudget =  $additional_budget->additional_budget;
+                                        $total = $capexbudget + $data->add_budget;
+                                        // dd($total);
+                                        $capex_budget_approve =  CapexBudget::where('department_id', $nv->department_id)->where('fiscal_year', $additional_budget->fiscal_year)->update([
+                                            'additional_budget' => $total
+                                        ]);
+                                    }
+                                }
+                            }
+                        }
+                    } elseif ($status == 2) {
+                        $status = "Rejected";
+                        $update_draft = NVMaterial::where('id', $material_id)->first();
+                        $update_draft->update([
+                            'draft' => '0',
+                        ]);
+                        Nvsericestatus::where('material_id', $material_id)
+                            ->update(['is_reject' => 1]);
+                        $nv = NeedValidation::where('id', $request->nv_id)->first();
+                        if ($nv->budgetary_provision == "Approved") {
+                            $nvmaterial = NVMaterial::where('id', $material_id)->first();
+                            $budget = budget::where('fiscal_year', $nv->fiscal_year)->where('dept_id', $nv->department_id)->where('budget_type', $nv->budget_type)->first();
+                            $total = $budget->total_budget - $nvmaterial->approved_budget;
+                            $budget = budget::where('fiscal_year', $nv->fiscal_year)->where('dept_id', $nv->department_id)->where('budget_type', $nv->budget_type)->update([
+                                'total_budget' => $total ?? '',
+                            ]);
+                        }
+                    }
+
+                    $initiated_date = NVMaterial::select('created_at')->where('id', $material_id)->first();
+                    $initiated_by = User::select('name', 'id')->where('id', $tble_material->user_id)->first();
+                    $user = User::select('email')->where('id', $tble_material->user_id)->first();
+                    $approved_by = User::select('name', 'id', 'email')->where('id', $workflow->workflow_user_id)->first();
+
+                    $name = $approved_by->name;
+                    $date = $workflow->nv_stage_timestamp;
+
+                    $user_id = Auth::user()->id;
+                    $nv_id = $request->nv_id;
+                    $nv_type = NeedValidation::where('id', $nv_id)->first();
+                    $employee = Employee::where('user_id', $user_id)->first();
+                    $depart = Department::where("id",  $nv_type->department_id)->first();
+                    $ini_date = NVMaterial::where('nv_id', $nv_id)->first();
+                    $ini_by =  Employee::where('user_id', $ini_date->user_id)->first();
+
+                    $to_emails = [];
+                    $to_emails2 = [];
+                    if ($isReviewer) {
+                        // Reviewer approved, notify approver at the same workflow_serial
+                        $mailToNext = DB::table('capex_workflows_status')
+                            ->where('transfer_to_nominee1','=',0)
+                            ->where('material_id', $material_id)
+                            ->where('nv_budget_type', $nv12->budget_type)
+                            ->where('workflow_serial', $workflow_serial)
+                            ->where('reviewer_name', 'approver')
+                            ->first();
+
+                        if ($mailToNext) {
+                            $emp = User::select('email')->where('id', $mailToNext->workflow_user_id)->first();
+                            if ($emp && !empty($emp->email)) {
+                                $to_emails2[] = $emp->email;
+                            }
+                        }
+                    } else {
+                        // Approver approved, check for reviewers in next workflow_serial
+                        $nextWorkflowSerial = $workflow_serial + 1;
+                        $reviewers = DB::table('capex_workflows_status')
+                            ->where('transfer_to_nominee1','=',0)
+                            ->where('material_id', $material_id)
+                            ->where('nv_budget_type', $nv12->budget_type)
+                            ->where('workflow_serial', $nextWorkflowSerial)
+                            ->where('reviewer_name', '!=', 'approver')
+                            ->get();
+
+                        if ($reviewers->isNotEmpty()) {
+                            foreach ($reviewers as $reviewer) {
+                                $emp = User::select('email')->where('id', $reviewer->workflow_user_id)->first();
+                                if ($emp && !empty($emp->email)) {
+                                    $to_emails2[] = $emp->email;
+                                }
+                            }
+                        } else {
+                            // No reviewers, fallback to approver of next workflow_serial
+                            $approver = DB::table('capex_workflows_status')
+                                ->where('transfer_to_nominee1','=',0)
+                                ->where('material_id', $material_id)
+                                ->where('nv_budget_type', $nv12->budget_type)
+                                ->where('workflow_serial', $nextWorkflowSerial)
+                                ->where('reviewer_name', 'approver')
+                                ->first();
+
+                            if ($approver) {
+                                $emp = User::select('email')->where('id', $approver->workflow_user_id)->first();
+                                if ($emp && !empty($emp->email)) {
+                                    $to_emails2[] = $emp->email;
+                                }
+                            }
+                        }
+                    }
+                    $p1 = "You have a new request that requires your approval:";
+                    $p2 = "Please review the request and take appropriate action.";
+                    $serviceType = ($nv_type->service_id == 1) ? 'Material' : 'Service';
+                    $subject = "Your NV (NV/{$nv_type->budget_type}/{$nv_type->fiscal_year}/{$depart->name}/{$serviceType}/{$nv_type->id}) has been {$status}";
+                    $to_emails = $user->email;
+                    Mail::send('emailtemp.initiator_mail', ['username' => 'user', 'initiated_date' => $initiated_date, 'initiated_by' => $initiated_by, 'name' => $name, 'ini_date' => $ini_date, 'ini_by' => $ini_by, 'p1' => $p1, 'p2' => $p2, 'nv_type' => $nv_type, 'remark' => $remark ?? '', 'department' => $depart, 'status' => $status,], function ($message) use ($to_emails, $subject) {
+                        $message->from(env('MAIL_FROM_ADDRESS'), 'NV');
+                        $message->to($to_emails);
+                        $message->subject($subject);
+                    });
+
+                    $p1 = "Your nv request has been approved:";
+                    $p2 = "";
+                    // $to_emails = $emp_rv->email;
+                    // dd($to_emails);
+                    if (!empty($to_emails2)) {
+                        Mail::send('emailtemp.doc_mail', ['username' => 'user', 'initiated_date' => $initiated_date, 'initiated_by' => $initiated_by, 'ini_date' => $ini_date, 'ini_by' => $ini_by, 'p1' => $p1, 'p2' => $p2, 'date' => $date, 'name' => $name, 'status' => $status, 'department' => $depart, 'nv_type' => $nv_type,], function ($message) use ($to_emails2) {
+                            $message->from(env('MAIL_FROM_ADDRESS'), 'NV');
+                            $message->to($to_emails2);
+                            $message->subject("Need Validation Status Update : Seeking your validation");
+                        });
+                    }
+                }
+            }
+        }
+        // PDF SAVE FOR ZOHO SIGN
+        //     $material_details =  NVMaterial::where('nv_id', $id)->orderBy('id', 'desc')->first();
+        //     $material_doc = MaterialDoc::where('service_id', $material_details->id)->orderBy('id', 'desc')->first();
+        //     $employeesss = Employee::where('department_id', $material_details->dept_id)->first();
+        //     $material_import   =  MateriBOQBulk::where('nv_id',$id)->where('material_id', $material_details->id)->orderBy('id', 'desc')->get();
+        //     $service_import = ServiceBOQBulk::where('nv_id',$id)->where('service_id', $material_details->id)->orderBy('id', 'desc')->get();
+        //     $nv_year = NeedValidation::select('id', 'fiscal_year')->where('id', $id)->first();
+
+        //     $dept_name = SupDept::where('id',$employeesss->super_department)->first('name');
+        //     $data = [
+        //         'id'=>$id ?? '',
+        //         'employees'=>$employeesss ?? '',
+        //         'service_import'=>$service_import ?? '',
+        //         'material_import'=>$material_import ?? '',
+        //         'material_details'=> $material_details ?? '',
+        //         'material_doc'=>$material_doc ?? '',
+        //         'nv_year'=>$nv_year ?? '',
+        //         'chats'=> $chats ?? '',
+        //         'dept_name' => $dept_name->name ?? '',
+        //     ];
+        //     $mainContentView1 = view('admin/nvMaterial/data', $data)->render();
+        //     $mainContentView2 = view('admin/nvMaterial/nv-pdf', $data)->render();
+        //     if(count($data['service_import']) > 0 || count($data['material_import']) > 0){
+        //         $mainContentView3 = view('admin/nvMaterial/BOQpdf', $data)->render();
+        //         $pdfContent = $mainContentView2 .$mainContentView1 . $mainContentView3;
+        //     }else{
+        //         $pdfContent = $mainContentView2 .$mainContentView1;
+        //     }
+        //    $pdf = PDF::loadHTML($pdfContent);
+
+        //     $tempDir = public_path('pdf/');
+        //     File::makeDirectory($tempDir, 0755, true, true);
+        //     $pdfFile = $tempDir . 'NVMaterial.pdf';
+        //     $pdf->save($pdfFile);
+
+
+        // // // <-----> ZOHO SIGNATURE START <----->
+
+        //         $refreshToken = "1000.a4d3679b075d2c00f69f30d8f9c30011.98674e2421d6c7a57c06e326d0c5a7b9";
+        //         $clientID = "1000.JY9FCMA9X7YY5DA1KWNNU3WC4RNM8Z";
+        //         $clientSecret = "4bccf973b553e05f54b628365d345032f2ccee7ba5";
+        //         $redirectURI = "https://sign.rediansoftware.com";
+
+        //         // Prepare POST data
+        //         $postData = array(
+        //             'refresh_token' => $refreshToken,
+        //             'client_id' => $clientID,
+        //             'client_secret' => $clientSecret,
+        //             'redirect_uri' => $redirectURI,
+        //             'grant_type' => 'refresh_token'
+        //         );
+
+        //         // Initialize cURL session
+        //         $curl = curl_init();
+
+        //         // Set cURL options
+        //         curl_setopt_array($curl, array(
+        //             CURLOPT_URL => "https://accounts.zoho.in/oauth/v2/token",
+        //             CURLOPT_RETURNTRANSFER => true,
+        //             CURLOPT_POST => true,
+        //             CURLOPT_POSTFIELDS => http_build_query($postData)
+        //         ));
+
+        //         // Execute the request
+        //         $response = curl_exec($curl);
+
+        //         // Check for errors
+        //         if(curl_errno($curl)){
+        //             echo 'Curl error: ' . curl_error($curl);
+        //         }
+
+        //         // Close cURL session
+        //         curl_close($curl);
+
+        //         // Output the response
+        //         $responseData = json_decode($response, true);
+        //         $accessToken= $responseData['access_token'];
+
+
+
+        //         // Create document and add recipients
+        //         $actionsJson = new \stdClass();
+        //         $actionsJson->recipient_name = $approved_by->name;
+        //         $actionsJson->recipient_email = $approved_by->email;
+        //         // dd($approved_by->email);
+        //         $actionsJson->action_type = "SIGN";
+        //         $actionsJson->private_notes = "Please get back to us for further queries";
+        //         $actionsJson->signing_order = 0;
+        //         $actionsJson->verify_recipient = false;
+        //         $actionsJson->verification_type = "EMAIL";
+        //         // Set is_embedded as true for generating embedded signing URL
+        //         $actionsJson->is_embedded = true;
+
+        //         $requestJSON = new \stdClass();
+        //         $requestJSON->request_name = "00" . $nv_type->id . "/" . $serviceType   . " - " . $approved_by->name;
+        //         // $requestJSON->request_name = "NV/" . $serviceType . "/" . $nv_type->budget_type . "/" . $depart->name . "/" . $nv_type->fiscal_year . "/00" . $nv_type->id .  "  (" . $status .  " by - " . $approved_by->name .")";
+        //         $requestJSON->expiration_days = 1;
+        //         $requestJSON->is_sequential = true;
+        //         $requestJSON->email_reminders = true;
+        //         $requestJSON->reminder_period = 8;
+        //         $requestJSON->actions = array($actionsJson);
+
+        //         $request = new \stdClass();
+        //         $request->requests = $requestJSON;
+        //         $data = json_encode($request);
+
+        //         // Set up POST data with file and JSON data
+        //         $POST_DATA = array(
+        //             'data' => $data,
+        //             // /home/pooja/Desktop/NVMaterial.pdf
+        //             'file' => new \CURLFile(public_path('pdf/NVMaterial.pdf'))
+        //         );
+
+        //         $curl = curl_init("https://sign.zoho.in/api/v1/requests");
+        //         curl_setopt($curl, CURLOPT_TIMEOUT, 30);
+        //         curl_setopt($curl, CURLOPT_HTTPHEADER, array(
+        //             "Authorization: Zoho-oauthtoken {$accessToken}",
+        //         ));
+        //         curl_setopt($curl, CURLOPT_POST, true);
+        //         curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+        //         curl_setopt($curl, CURLOPT_POSTFIELDS, $POST_DATA);
+        //         $response = curl_exec($curl);
+
+        //         $jsonbody = json_decode($response); // contains field types response
+        //         // dd($jsonbody);
+        //         if ($jsonbody->status == "success") {
+
+        //             $createdRequestId = $jsonbody->requests->request_id;
+        //             $requestId = $createdRequestId;
+        //             // Save the ID from the response to update later
+        //             $createdRequest = new \stdClass();
+        //             $createdRequest = $jsonbody->requests;
+
+        //         } else {
+        //             // Error check for error
+        //             echo $jsonbody->message;
+        //         }
+
+        //         curl_close($curl);
+
+        //         // Set your access token
+        //         //$accessToken = '1000.3c95949d463e74f4a1293177d9d47b79.e32d291c198a7d43ea71ac9d5c75f6d5';
+
+        //         // Retrieve necessary data from your object
+        //         $action_id = $createdRequest->actions[0]->action_id;
+        //         $recipientName = $createdRequest->actions[0]->recipient_name;
+        //         $recipientEmail = $createdRequest->actions[0]->recipient_email;
+        //         $action_type = $createdRequest->actions[0]->action_type;
+        //         $document_id = $createdRequest->document_ids[0]->document_id;
+
+
+        //         try {
+        //             // Prepare actions JSON
+        //             $actionsJson1 = array(
+        //                 "action_id" => $action_id,
+        //                 "recipient_name" => $recipientName,
+        //                 "recipient_email" => $recipientEmail,
+        //                 "action_type" => $action_type
+        //             );
+
+        //             // Prepare field JSON
+        //             $fieldJson = array(
+        //                 "document_id" => $document_id,
+        //                 "field_name" => "Signature",
+        //                 "field_type_name" => "Signature",
+        //                 "field_label" => "Text - 1",
+        //                 "field_category" => "Signature",
+        //                 "abs_width" => "0",
+        //                 "abs_height" => "0",
+        //                 "is_mandatory" => false,
+        //                 "x_coord" => "39",
+        //                 "y_coord" => "610",
+        //                 "page_no" => 0
+        //             );
+
+        //             // Attach field JSON to actions JSON
+        //             $actionsJson1["fields"] = array($fieldJson);
+
+        //             // Prepare document JSON
+        //             $documentJson1 = array(
+        //                 "actions" => array($actionsJson1)
+        //             );
+
+        //             // Prepare data for the request
+        //             $data1 = array(
+        //                 "requests" => $documentJson1
+        //             );
+
+        //             // Encode data as JSON
+        //             $jsonData = json_encode($data1);
+
+        //             // Initialize cURL session
+        //             $ch = curl_init();
+
+        //             // Set cURL options
+        //             curl_setopt($ch, CURLOPT_URL, "https://sign.zoho.in/api/v1/requests/{$requestId}/submit");
+        //             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        //             curl_setopt($ch, CURLOPT_POST, true);
+        //             curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonData);
+        //             curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+        //                 "Authorization: Zoho-oauthtoken {$accessToken}",
+        //                 "Content-Type: application/json"
+        //             ));
+
+        //             // Execute the request
+        //             $response = curl_exec($ch);
+        //             // Check for errors
+        //             if ($response === false) {
+        //                 throw new Exception("cURL error: " . curl_error($ch));
+        //             }
+
+        //             // Decode the response
+        //             $responseData = json_decode($response, true);
+        //             //  dd($responseData);
+
+        //             // Handle the response
+        //             if (isset($responseData["status"]) && $responseData["status"] == "success") {
+        //                 $result = array(
+        //                     "status" => "success",
+        //                     "message" => "Document submitted successfully",
+        //                     "actionId" => $responseData["requests"]["actions"][0]["action_id"],
+        //                     "requestId" => $responseData["requests"]["request_id"]
+        //                 );
+        //             } else {
+        //                 $result = array(
+        //                     "status" => "failure",
+        //                     "message" => "Failed to submit the document"
+        //                 );
+        //             }
+
+        //             // Close cURL session
+        //             curl_close($ch);
+
+        //             // Return result
+        //         // return $result;
+
+        //         } catch (Exception $e) {
+        //             // Handle exceptions
+        //             return array(
+        //                 "status" => "failure",
+        //                 "message" => "Failed to submit the document: " . $e->getMessage()
+        //             );
+        //         }
+
+
+        //         //$accessToken = '1000.3c95949d463e74f4a1293177d9d47b79.e32d291c198a7d43ea71ac9d5c75f6d5';
+        //         $createdRequestId = $jsonbody->requests->request_id;
+        //         $requestId = $createdRequestId;
+        //         $actionId = $createdRequest->actions[0]->action_id;
+        //         $host = "https://www.aajtak.in/";
+
+        //             $ch = curl_init();
+
+        //             // Set the POST data
+        //             $postData = array(
+        //                 "host" => $host,
+        //                 // "redirect_url" => url("/admin/nv_material/preview/{$id}"),
+        //                 // "decline_redirect_url" => url("/admin/nv_material/preview/{$id}"),
+        //                 // "skip_redirect_url" => url("/admin/nv_material/preview/{$id}"),
+        //             );
+
+        //             // Set cURL options
+        //             curl_setopt($ch, CURLOPT_URL, "https://sign.zoho.in/api/v1/requests/{$requestId}/actions/{$actionId}/embedtoken");
+        //             curl_setopt($ch, CURLOPT_POST, true);
+        //             curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($postData));
+        //             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        //             curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+        //                 "Authorization: Zoho-oauthtoken {$accessToken}",
+        //                 "Content-Type: application/x-www-form-urlencoded"
+        //             ));
+
+        //             // Execute the request
+        //             $response = curl_exec($ch);
+        //         //echo $response;
+        //             // Check for errors
+        //             if ($response === false) {
+        //                 throw new Exception("cURL error: " . curl_error($ch));
+        //             }
+
+        //             // Decode the response
+        //           // Decode the response
+        //             $responseData = json_decode($response, true);
+        //             //    dd($responseData);
+        //             // Handle the response
+        //             if (isset($responseData["status"]) && $responseData["status"] == "success") {
+        //                 $signurl = $responseData["sign_url"];
+        //             }
+        // // // <-----> ZOHO SIGNATURE END <----->
+
+
+        $result = array(
+            "result" => "success",
+            "material_id" => $material_id,
+            "sign_url" => $signurl ?? '',
+        );
+        return response()->json($result);
+    }
+
+    // Common function to send approval emails
+    function sendApprovalEmails($user, $emp_rv,  $status, $initiated_date, $initiated_by, $approved_by, $approved_date)
+    {
+
+        $p1 = "You have a new request that requires your approval:";
+        $p2 = "Please review the request and take appropriate action.";
+        $status = "Approved";
+        $to_emails = $user->email;
+        Queue::push(new SendEmailJob($to_emails, "Need Validation Status Update : Seeking your validation", ['username' => 'user', 'p1' => $p1, 'p2' => $p2, 'status' => $status, 'initiated_date' => $initiated_date, 'initiated_by' => $initiated_by, 'approved_date' => $approved_date, 'approved_by' => $approved_by]));
+
+        $p1 = "Your nv request has been approved:";
+        $p2 = "";
+        $status = "Approved";
+        $to_emails = $emp_rv->email;
+        Queue::push(new SendEmailJob($to_emails, "Need Validation Status Update : Seeking your validation", ['username' => 'user', 'p1' => $p1, 'p2' => $p2, 'status' => $status, 'initiated_date' => $initiated_date, 'initiated_by' => $initiated_by, 'approved_date' => $approved_date, 'approved_by' => $approved_by]));
+
+        // $this->sendEmail($to_emails, "Need Validation Status Update : Seeking your validation", ['username' => 'user', 'p1' => $p1, 'p2' => $p2]);
+    }
+
+    // Common function to send rejection emails
+    function sendRejectionEmails($user, $emp_rv,  $status, $initiated_date, $initiated_by, $approved_by, $approved_date)
+    {
+        $p1 = "You have a new request that requires your approval:";
+        $p2 = "Please review the request and take appropriate action.";
+        $status = "Rejected";
+        $to_emails = $user->email;
+        // $this->sendEmail($to_emails, "Need Validation Status Update : Seeking your validation", ['username' => 'user', 'p1' => $p1, 'p2' => $p2]);
+        Queue::push(new SendEmailJob($to_emails, "Need Validation Status Update : Seeking your validation", ['username' => 'user', 'p1' => $p1, 'p2' => $p2, 'status' => $status, 'initiated_date' => $initiated_date, 'initiated_by' => $initiated_by, 'approved_date' => $approved_date, 'approved_by' => $approved_by]));
+
+
+        $p1 = "Your nv request has been Rejected:";
+        $p2 = "";
+        $status = "Rejected";
+        $to_emails = $emp_rv->email;
+        Queue::push(new SendEmailJob($to_emails, "Need Validation Status Update : Seeking your validation", ['username' => 'user', 'p1' => $p1, 'p2' => $p2, 'status' => $status, 'initiated_date' => $initiated_date, 'initiated_by' => $initiated_by, 'approved_date' => $approved_date, 'approved_by' => $approved_by]));
+
+        // $this->sendEmail($to_emails, "Need Validation Status Update : Seeking your validation", ['username' => 'user', 'p1' => $p1, 'p2' => $p2]);
+    }
+    // Reusable function to send emails
+    function sendEmail($to_emails, $subject, $data)
+    {
+
+        Mail::send('emailtemp.doc_mail', $data, function ($message) use ($to_emails, $subject) {
+            $message->from(env('MAIL_FROM_ADDRESS'), 'NV');
+            $message->to($to_emails);
+            // //$message->cc('raushan@rediansoftware.com');
+            $message->subject($subject);
+        });
+    }
+
+    public function sendEmail1(Request $request)
+    {
+
+
+        $user_id = \Auth()->user()->id;
+
+        $nv_id = $request->nv_id;
+        $user_name = $request->user_name;
+        $receiver_user_id = $request->user_id;
+
+        $material_id = $request->material_id;
+        $selectedEmails = $request->emails;
+
+        $clarificationRemark = $request->remark;
+        $clarificationId = $request->clarificationId;
+        $is_replied = ($request->is_replied) ? $request->is_replied : 0;
+        $file = $request->file('file') ?? null;
+        if (!empty($file)) {
+            $filePath = $file->getClientOriginalName();
+            $filePaths = public_path('clarification-file/' . $filePath);
+
+            if (!File::exists($filePaths)) {
+                $file->move(public_path('clarification-file/'), $filePath);
+            }
+        }
+        // dd($request->all());
+        // if(!is_array($selectedEmails)){
+        //     $selectedEmails = explode(" ",$selectedEmails);
+        // }
+        $employees = Employee::select('email', 'department_id', 'name')->where("name", $selectedEmails)->first();
+        //dd($request->all());
+
+        $departmentIds = explode(',', $employees->department_id);
+        // dd($departmentIds);
+        $departments = Department::whereIn("id", $departmentIds)->get();
+
+        $material_detail = NVMaterial::select('*')->where('nv_id', $nv_id)->orderBy('id', 'desc')->first();
+
+        $nv_type = NeedValidation::where('id', $nv_id)->first();
+
+        $employee = Employee::where('user_id', $user_id)->first();
+        $depart = Department::where("id", $nv_type->department_id)->first();
+        $ini_by =  Employee::where('user_id', $user_id)->first();
+
+        //$selectedEmails = $request->emails;
+
+        // Fetch user names based on email addresses
+        $userNames = Employee::where('name', $selectedEmails)->pluck('name', 'email');
+        // Check if $nv_type and $depart are not null
+        $employee_id = Employee::pluck('user_id');
+
+        $ccuser = DB::table('tbl_material')
+            ->join('nvservicestatus', 'tbl_material.nv_id', '=', 'nvservicestatus.nv_id')
+            ->where('tbl_material.nv_id', '=', $nv_id)
+            ->where(function ($query) {
+                $query->orWhere('nvservicestatus.rv1_status', [1])
+                    ->orWhere('nvservicestatus.rv2_status', [1])
+                    ->orWhere('nvservicestatus.rv3_status', [1])
+                    ->orWhere('nvservicestatus.rv4_status', [1])
+                    ->orWhere('nvservicestatus.hod_status', [1])
+                    ->orWhere('nvservicestatus.ces_rew1_status', [1])
+                    ->orWhere('nvservicestatus.ces_rew2_status', [1])
+                    ->orWhere('nvservicestatus.ces_rew3_status', [1])
+                    ->orWhere('nvservicestatus.ces_rew4_status', [1])
+                    ->orWhere('nvservicestatus.ces_status', [1])
+                    ->orWhere('nvservicestatus.approver_status', [1])
+                    ->orWhere('nvservicestatus.work_rew1_status', [1])
+                    ->orWhere('nvservicestatus.work_rew2_status', [1])
+                    ->orWhere('nvservicestatus.work_rew3_status', [1])
+                    ->orWhere('nvservicestatus.work_rew4_status', [1])
+                    ->orWhere('nvservicestatus.approverdep2_status', [1])
+                    ->orWhere('nvservicestatus.work_rew1dep2_status', [1])
+                    ->orWhere('nvservicestatus.work_rew2dep2_status', [1])
+                    ->orWhere('nvservicestatus.work_rew3dep2_status', [1])
+                    ->orWhere('nvservicestatus.work_rew4dep2_status', [1])
+                    ->orWhere('nvservicestatus.approverdep3_id', [1])
+                    ->orWhere('nvservicestatus.work_rew1dep3_status', [1])
+                    ->orWhere('nvservicestatus.work_rew2dep3_status', [1])
+                    ->orWhere('nvservicestatus.work_rew3dep3_status', [1])
+                    ->orWhere('nvservicestatus.work_rew4dep3_status', [1])
+                    ->orWhere('nvservicestatus.approverdep4_status', [1])
+                    ->orWhere('nvservicestatus.work_rew1dep4_status', [1])
+                    ->orWhere('nvservicestatus.work_rew2dep4_status', [1])
+                    ->orWhere('nvservicestatus.work_rew3dep4_status', [1])
+                    ->orWhere('nvservicestatus.work_rew4dep4_status', [1])
+                    ->orWhere('nvservicestatus.groupcio_status', [1])
+                    ->orWhere('nvservicestatus.ceo_status', [1]);
+            })
+            ->select(
+                'nvservicestatus.rv1_id',
+                'nvservicestatus.rv2_id',
+                'nvservicestatus.rv3_id',
+                'nvservicestatus.rv3_id',
+                'nvservicestatus.rv4_id',
+                'nvservicestatus.hod_id',
+                'nvservicestatus.ces_rew1_id',
+                'nvservicestatus.ces_rew2_id',
+                'nvservicestatus.ces_rew3_id',
+                'nvservicestatus.ces_rew4_id',
+                'nvservicestatus.ces_id',
+                'nvservicestatus.work_rew1_id',
+                'nvservicestatus.work_rew2_id',
+                'nvservicestatus.work_rew3_id',
+                'nvservicestatus.work_rew4_id',
+                'nvservicestatus.approver_id',
+                'nvservicestatus.work_rew1dep2_id',
+                'nvservicestatus.work_rew2dep2_id',
+                'nvservicestatus.work_rew3dep2_id',
+                'nvservicestatus.work_rew4dep2_id',
+                'nvservicestatus.approverdep2_id',
+                'nvservicestatus.work_rew1dep3_id',
+                'nvservicestatus.work_rew2dep3_id',
+                'nvservicestatus.work_rew3dep3_id',
+                'nvservicestatus.work_rew4dep3_id',
+                'nvservicestatus.approverdep3_id',
+                'nvservicestatus.work_rew1dep4_id',
+                'nvservicestatus.work_rew2dep4_id',
+                'nvservicestatus.work_rew3dep4_id',
+                'nvservicestatus.work_rew4dep4_id',
+                'nvservicestatus.approverdep4_id'
+            )
+            ->get();
+
+        $employee_emails = Employee::whereIn('user_id', $employee_id)
+            ->pluck('email', 'user_id');
+
+        $id_email_mapping = [];
+
+        foreach ($ccuser as $item) {
+            $id_email_mapping[] = isset($employee_emails[$item->rv1_id]) ? $employee_emails[$item->rv1_id] : null;
+            $id_email_mapping[] = isset($employee_emails[$item->rv2_id]) ? $employee_emails[$item->rv2_id] : null;
+            $id_email_mapping[] = isset($employee_emails[$item->rv3_id]) ? $employee_emails[$item->rv3_id] : null;
+            $id_email_mapping[] = isset($employee_emails[$item->rv4_id]) ? $employee_emails[$item->rv4_id] : null;
+            $id_email_mapping[] = isset($employee_emails[$item->hod_id]) ? $employee_emails[$item->hod_id] : null;
+            $id_email_mapping[] = isset($employee_emails[$item->ces_rew1_id]) ? $employee_emails[$item->ces_rew1_id] : null;
+            $id_email_mapping[] = isset($employee_emails[$item->ces_rew2_id]) ? $employee_emails[$item->ces_rew2_id] : null;
+            $id_email_mapping[] = isset($employee_emails[$item->ces_rew3_id]) ? $employee_emails[$item->ces_rew3_id] : null;
+            $id_email_mapping[] = isset($employee_emails[$item->ces_rew4_id]) ? $employee_emails[$item->ces_rew4_id] : null;
+            $id_email_mapping[] = isset($employee_emails[$item->ces_id]) ? $employee_emails[$item->ces_id] : null;
+
+            $id_email_mapping[] = isset($employee_emails[$item->work_rew1_id]) ? $employee_emails[$item->work_rew1_id] : null;
+            $id_email_mapping[] = isset($employee_emails[$item->work_rew2_id]) ? $employee_emails[$item->work_rew2_id] : null;
+            $id_email_mapping[] = isset($employee_emails[$item->work_rew3_id]) ? $employee_emails[$item->work_rew3_id] : null;
+            $id_email_mapping[] = isset($employee_emails[$item->work_rew4_id]) ? $employee_emails[$item->work_rew4_id] : null;
+            $id_email_mapping[] = isset($employee_emails[$item->approver_id]) ? $employee_emails[$item->approver_id] : null;
+
+            $id_email_mapping[] = isset($employee_emails[$item->work_rew1dep2_id]) ? $employee_emails[$item->work_rew1dep2_id] : null;
+            $id_email_mapping[] = isset($employee_emails[$item->work_rew2dep2_id]) ? $employee_emails[$item->work_rew2dep2_id] : null;
+            $id_email_mapping[] = isset($employee_emails[$item->work_rew3dep2_id]) ? $employee_emails[$item->work_rew3dep2_id] : null;
+            $id_email_mapping[] = isset($employee_emails[$item->work_rew4dep2_id]) ? $employee_emails[$item->work_rew4dep2_id] : null;
+            $id_email_mapping[] = isset($employee_emails[$item->approverdep2_id]) ? $employee_emails[$item->approverdep2_id] : null;
+
+            $id_email_mapping[] = isset($employee_emails[$item->work_rew1dep3_id]) ? $employee_emails[$item->work_rew1dep3_id] : null;
+            $id_email_mapping[] = isset($employee_emails[$item->work_rew2dep3_id]) ? $employee_emails[$item->work_rew2dep3_id] : null;
+            $id_email_mapping[] = isset($employee_emails[$item->work_rew3dep3_id]) ? $employee_emails[$item->work_rew3dep3_id] : null;
+            $id_email_mapping[] = isset($employee_emails[$item->work_rew4dep3_id]) ? $employee_emails[$item->work_rew4dep3_id] : null;
+            $id_email_mapping[] = isset($employee_emails[$item->approverdep3_id]) ? $employee_emails[$item->approverdep3_id] : null;
+
+            $id_email_mapping[] = isset($employee_emails[$item->work_rew1dep4_id]) ? $employee_emails[$item->work_rew1dep4_id] : null;
+            $id_email_mapping[] = isset($employee_emails[$item->work_rew2dep4_id]) ? $employee_emails[$item->work_rew2dep4_id] : null;
+            $id_email_mapping[] = isset($employee_emails[$item->work_rew3dep4_id]) ? $employee_emails[$item->work_rew3dep4_id] : null;
+            $id_email_mapping[] = isset($employee_emails[$item->work_rew4dep4_id]) ? $employee_emails[$item->work_rew4dep4_id] : null;
+            $id_email_mapping[] = isset($employee_emails[$item->approverdep4_id]) ? $employee_emails[$item->approverdep4_id] : null;
+        }
+
+
+        $id_email_mapping = array_values(array_filter(array_unique($id_email_mapping)));
+        $emails = $employees->email;
+        $name = $employees->name;
+
+        $data = [
+            'remark' => $clarificationRemark,
+            'selectedEmails' => $selectedEmails,
+            'userNames' => $userNames,
+            'nv_type' => $nv_type,
+            'department' => $depart,
+            'ini_by' =>  $ini_by,
+            'name' => $name,
+            'emails' =>  $emails,
+
+        ];
+
+        try {
+
+
+            if ($is_replied == 1) {
+                $subject = "Reply for {$ini_by->name} on NV no: NV/{$nv_type->budget_type}/{$nv_type->fiscal_year}/{$depart->name}" . ($nv_type->service_id == 1 ? "/Material/{$nv_type->id}" : ($nv_type->service_id == 2 ? "/Service/{$nv_type->id}" : ''));
+            } else {
+                $subject = "Clarification required from {$ini_by->name} on NV no: NV/{$nv_type->budget_type}/{$nv_type->fiscal_year}/{$depart->name}" . ($nv_type->service_id == 1 ? "/Material/{$nv_type->id}" : ($nv_type->service_id == 2 ? "/Service/{$nv_type->id}" : ''));
+            }
+
+            Mail::send('emailtemp.doc_mail1', $data, function ($message) use ($emails, $name, $id_email_mapping, $nv_type, $depart, $ini_by, $subject, $file) {
+                $message->from(env('MAIL_FROM_ADDRESS'), 'NV');
+                $message->to($emails);
+                foreach ($id_email_mapping as $ccEmail) {
+                    $message->cc($ccEmail);
+                }
+                $message->subject($subject);
+                if (!empty($file)) {
+                    // Attach the file to the email
+                    $message->attach(public_path('clarification-file/' . $file->getClientOriginalName()));
+                }
+            });
+
+            if ($is_replied == 1) {
+                //dd(111);
+                $update = Clarification::find($clarificationId)->update(['is_replied' => 1, 'clarification_remark_reply' => $clarificationRemark, 'reply_timestamp' => date('Y-m-d H:i:s'), 'reply_attachment' =>  $filePath ?? null,]);
+            } else {
+                $clarification = Clarification::create([
+                    'material_id' => $material_id,
+                    'nv_id' => $nv_id,
+                    'user_id' => $user_id,
+                    'user_name' =>  $user_name,
+                    'clarification_remark' => $clarificationRemark,
+                    'receiver_user_id' => $receiver_user_id,
+                ]);
+            }
+
+
+            $response = [
+                'success' => true
+            ];
+        } catch (\Exception $e) {
+            dd($e);
+            $response = [
+                'success' => false,
+                'error' => $e->getMessage()
+            ];
+        }
+
+
+        // Check if $nv_type and $depart are not null
+
+
+
+
+        return response()->json($response);
+    }
+
+
+    public function sendEmail2(Request $request)
+    {
+        //    return $request->all();
+        $to = $request->to;
+        $cc = $request->cc;
+        $subject = $request->subject;
+        $remark = $request->remark;
+
+        // Logic to send the email
+        $data = [
+            'remark' => $remark
+        ];
+
+        // Example using the Mail facade
+        Mail::send('emailtemp.doc_mail1', $data, function ($message) use ($to, $cc, $subject, $remark) {
+            $message->to($to)
+                ->cc($cc)
+                ->subject($subject);
+        });
+
+        // Return a response indicating the email was sent successfully
+        return response()->json(['success' => true]);
+    }
+
+    public function preview(Request $request, $nv_id)
+    {
+        $user = \Auth()->user();
+        $nv_id = $request->nv_id;
+        $segment_id = request()->segment(5);
+
+        if (!empty($segment_id)) {
+
+            $material_details = NVMaterial::where('id', $segment_id)->orderBy('id', 'desc')->first();
+            $material_doc = MaterialDoc::where('service_id', $segment_id)->orderBy('id', 'desc')->first();
+        } else {
+            $material_details = NVMaterial::where('nv_id', $nv_id)->orderBy('id', 'desc')->first();
+            $material_doc = MaterialDoc::where('service_id', $material_details->id)->orderBy('id', 'desc')->first();
+        }
+
+        $files = [];
+        if (!empty($material_doc->previous_work_order)) {
+            array_push($files, $material_doc["previous_work_order"]);
+        }
+        if (!empty($material_doc->derc_stakeholder_approvals)) {
+            array_push($files, $material_doc["derc_stakeholder_approvals"]);
+        }
+        if (!empty($material_doc->consumption_details)) {
+            array_push($files, $material_doc["consumption_details"]);
+        }
+        if (!empty($material_doc->vend_quatation)) {
+            array_push($files, $material_doc["vend_quatation"]);
+        }
+        if (!empty($material_doc->photo_product)) {
+            array_push($files, $material_doc["photo_product"]);
+        }
+        if (!empty($material_doc->material_procurement)) {
+            array_push($files, $material_doc["material_procurement"]);
+        }
+        if (!empty($material_doc->budget_for_both)) {
+            array_push($files, $material_doc["budget_for_both"]);
+        }
+        if (!empty($material_doc->new_product)) {
+            array_push($files, $material_doc["new_product"]);
+        }
+        if (!empty($material_doc->cm_rate_ref)) {
+            array_push($files, $material_doc["cm_rate_ref"]);
+        }
+        if (!empty($material_doc->vendor_quatation)) {
+            array_push($files, $material_doc["vendor_quatation"]);
+        }
+        if (!empty($material_doc->last_purchase_price)) {
+            array_push($files, $material_doc["last_purchase_price"]);
+        }
+        if (!empty($material_doc->user_estimation)) {
+            array_push($files, $material_doc["user_estimation"]);
+        }
+        if (!empty($material_doc->previous_wo_rc)) {
+            array_push($files, $material_doc["previous_wo_rc"]);
+        }
+        if (!empty($material_doc->cost_calculation_for_service)) {
+            array_push($files, $material_doc["cost_calculation_for_service"]);
+        }
+        if (!empty($material_doc->special_attch)) {
+            array_push($files, $material_doc["special_attch"]);
+        }
+        if (!empty($material_doc->just_prop_upload)) {
+            array_push($files, $material_doc["just_prop_upload"]);
+        }
+        if (!empty($material_doc->quant_just)) {
+            array_push($files, $material_doc["quant_just"]);
+        }
+        if (!empty($material_doc->others)) {
+            $others = explode(',', $material_doc->others);
+            $count_others = count($others);
+        } else {
+            $count_others = 0;
+        }
+        $countFiles = (count($files)) + $count_others;
+
+        $nv = NeedValidation::where('id', $nv_id)->orderBy('id', 'desc')->first();
+        $nv_year = NeedValidation::select('id', 'fiscal_year', 'proposal_type')->where('id', $nv_id)->first();
+        $material_import = MateriBOQBulk::where('nv_id', $nv_id)->where('material_id', $material_details->id)->orderBy('id', 'desc')->get();
+        $service_import = ServiceBOQBulk::where('nv_id', $nv_id)->where('service_id', $material_details->id)->orderBy('id', 'desc')->get();
+        // $employees = Employee::where('department_id', $material_details->dept_id)->where('user_id','!=', $user->id)->get();
+
+        $material_nv = NeedValidation::where("id", $nv_id)
+            ->select('user_id', 'id')->first();
+        $mat = NVMaterial::where('nv_id', $material_nv->id)->where('user_id', $material_nv->user_id)->pluck('user_id');
+
+        if (!empty($material_nv)) {
+            $employees = Employee::where('department_id', $material_details->dept_id)
+                ->where('user_id', '!=', $user->id)
+                ->whereIn('user_id', $mat)
+                ->get();
+        }
+
+
+        $chats = Chat::where('material_id', $material_details->id)->where('user_login_id', $user->id)->get();
+        // $clarifications = Clarification::where('material_id',$material_details->id)->where('user_id',$user->id)->get();
+
+        $clarifications = Clarification::where('material_id', $material_details->id)->where('nv_id', $nv_id)->get();
+
+        $clarificationsrecevier = Clarification::where('material_id', $material_details->id)->where('receiver_user_id', $user->id)->get();
+        $clarificationssender = Clarification::select('user_id')->where('material_id', $material_details->id)->where('receiver_user_id', $user->id)->pluck('user_id')->toArray();
+        $clarificationssenderemailid = Employee::whereIn('user_id', $clarificationssender)->pluck('name');
+
+        if ($nv->budget_type == "CAPEX" && $nv->budgetary_provision == "Approved") {
+            $capex_budget = CapexBudget::where('department_id', $nv->department_id)->where('fiscal_year', $nv->fiscal_year)->exists();
+            if ($capex_budget) {
+                $capex_budget1 = CapexBudget::where('department_id', $nv->department_id)->select('fiscal_year')->get();
+                foreach ($capex_budget1 as $cap) {
+                    if ($nv->fiscal_year == $cap->fiscal_year) {
+                        $budget1 = CapexBudget::where('department_id', $nv->department_id)->where('fiscal_year', $cap->fiscal_year)->first();
+                        $budget = $budget1->revised_budget;
+                        // dd($budget->revised_budget);
+                    }
+                }
+
+                if (!budget::where('dept_id', $nv->department_id)->where('budget_type', $nv->budget_type)->where('fiscal_year', $nv->fiscal_year)->exists()) {
+                    budget::insert([
+                        'dept_id' => $nv->department_id ?? null,
+                        'budget_type' => $nv->budget_type ?? null,
+                        'fiscal_year' => $nv->fiscal_year ?? null,
+                        'budget_avl' => $budget ?? null,
+                        'service_id' => $material_details->id ?? null,
+                        'nv_id' => $nv_id ?? null,
+                    ]);
+                }
+            }
+        } elseif ($nv->budget_type == "OPEX" && $nv->budgetary_provision == "Approved") {
+            $opex_budget = OpexBudget::where('department_id', $nv->department_id)->where('fiscal_year', $nv->fiscal_year)->exists();
+
+            if ($opex_budget) {
+                $opex_budget1 = OpexBudget::where('department_id', $nv->department_id)->select('fiscal_year')->get();
+
+                foreach ($opex_budget1 as $cap) {
+                    if ($nv->fiscal_year == $cap->fiscal_year) {
+                        $budget1 = OpexBudget::where('department_id', $nv->department_id)->where('fiscal_year', $cap->fiscal_year)->first();
+                        $budget = $budget1->revised_budget;
+                    }
+                }
+
+                if (!budget::where('dept_id', $nv->department_id)->where('budget_type', $nv->budget_type)->where('fiscal_year', $nv->fiscal_year)->exists()) {
+                    budget::insert([
+                        'dept_id' => $nv->department_id ?? null,
+                        'budget_type' => $nv->budget_type ?? null,
+                        'fiscal_year' => $nv->fiscal_year ?? null,
+                        'budget_avl' => $budget ?? null,
+                        'service_id' => $material_details->id ?? null,
+                        'nv_id' => $nv_id ?? null,
+                    ]);
+                }
+            }
+        }
+        $workflowStatus = DB::table('capex_workflows_status')->where('nv_id', $nv_id)->where('department_id', 16)->first();
+        $transfer_to_nominee1 = $workflowStatus->transfer_to_nominee1 ?? 0;
+        return view('admin.nvMaterial.preview', compact('transfer_to_nominee1', 'countFiles', 'material_details', 'material_doc', 'employees', 'chats', 'nv_year', 'material_import', 'nv', 'service_import', 'clarifications', 'clarificationsrecevier', 'clarificationssenderemailid'));
+    }
+
+    public function getLocationByDivision(Request $request)
+    {
+        try {
+            $division_id = $request->division ?? null;
+
+            $assets = Location::select('id', 'name')->where('divisions_id', $division_id)->orderBy('id', 'desc')->get()->toArray();
+
+            return response()->json(['result' => 'success', 'data' => $assets]);
+        } catch (Exception $e) {
+            app(\App\Exceptions\Handler::class)->report($e);
+
+            return response()->json(['result' => 'failure', 'msg' => $e->getMessage()]);
+        }
+    }
+
+    public function bulkProviderStore(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'materialboq' => 'required|max:2048'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json(['ValidationError' => $validator->errors()], 422);
+            }
+
+            $path = $request->file('materialboq')->store('matboq');
+
+            $import = new ExcelImportService(new MateriBOQBulk);
+            $data = $import->import($path);
+
+            $columns = array_diff(
+                Schema::getColumnListing((new MateriBOQBulk)->getTable()),
+                ['id', 'file', 'created_at', 'updated_at', 'material_id']
+            );
+
+            $nv_id = $request->nv_id;
+            $material_id = $request->service_id;
+            $selected_year = $request->selectedYear;
+
+            $duplicateMaterialCodes = [];
+            $invalidRateReferences = [];
+
+            // Helper to safely convert to numeric
+            $toNumber = function ($value) {
+                return is_numeric($value) ? $value + 0 : 0;
+            };
+
+            $monthColumns = ['april', 'may', 'june', 'july', 'august', 'september', 'oct', 'nov', 'dec', 'jan', 'feb', 'march'];
+
+            $rowIndex = 1; // Track Excel row number for errors
+
+            $data['rows'] = array_map(function ($row) use (
+                $columns,
+                $nv_id,
+                $selected_year,
+                $material_id,
+                &$duplicateMaterialCodes,
+                &$invalidRateReferences,
+                $toNumber,
+                $monthColumns,
+                &$rowIndex
+            ) {
+                if (count($columns) !== count($row)) {
+                    $row = array_slice($row, 0, count($columns));
+                }
+
+                $row = array_combine($columns, $row);
+
+                // Convert numeric fields safely
+                $numericFields = array_merge(
+                    ['rate', 'quantity'],
+                    array_map(fn($m) => $m . '1', $monthColumns),
+                    array_map(fn($m) => $m . '2', $monthColumns),
+                    array_map(fn($m) => $m . '3', $monthColumns)
+                );
+
+                foreach ($numericFields as $field) {
+                    $row[$field] = $toNumber($row[$field] ?? 0);
+                }
+                // Validate Quantity - No Decimal Allowed
+                $rawQty = $row['quantity'] ?? 0;
+
+                if (floor($rawQty) != $rawQty) {
+                    throw new \Exception("Error on Excel Row #{$rowIndex}: Quantity cannot be decimal. Found: {$rawQty}");
+                }
+
+                $row['quantity'] = max(0, intval($rawQty));
+                // Generate material code if missing
+                $material_codeID = $row['material_code'] ?? '';
+                if ($material_codeID == 'N/A' || $material_codeID == '') {
+                    $material_codeID = '7' . rand(100000000, 999999999);
+                }
+
+                // Fetch master data if material_code is valid
+                $material_data = null;
+                if ($material_codeID != 'N/A' && $material_codeID != '') {
+                    $material_data = MasterMaterialboq::select('rate_add', 'uom', 'material_short_text')
+                        ->where('activity', $material_codeID)
+                        ->first();
+                }
+
+                // Handle UOM and material_short_text
+                if (!empty($material_data)) {
+                    $row['uom'] = $material_data->uom;
+                    $row['material_short_text'] = $material_data->material_short_text;
+                } else {
+                    $temp = $row['uom'];
+                    $row['uom'] = $row['material_short_text'] ?? '';
+                    $row['material_short_text'] = $temp ?? '';
+                }
+
+                $row['nv_id'] = $nv_id;
+                $row['material_id'] = $material_id;
+                $row['material_code'] = $material_codeID;
+
+                // Rate reference mapping
+              $rateRefMap = [
+                                'Vendor Quotation'   => 0,
+                                'Last Work Order'    => 1,
+                                'C&M Rate Reference' => 2,
+                                'User Estimation'    => 3
+                            ];
+
+                            $rateReferenceText = $row['rate_reference'] ?? '';
+                            $rateReferenceValue = 4; // default
+
+                            foreach ($rateRefMap as $text => $value) {
+                                if (stripos($rateReferenceText, $text) !== false) {
+                                    $rateReferenceValue = $value;
+                                    break;
+                                }
+                            }
+
+                            $row['rate_reference'] = $rateReferenceValue;
+
+                
+                // Rate handling
+                if ($row['rate_reference'] == 2 && !empty($material_data) && !empty($material_data->rate_add)) {
+                    $row['rate'] = max(0, $toNumber($material_data->rate_add));
+                } else {
+                    $row['rate'] = max(0, $toNumber($row['rate']));
+                }
+
+                $row['amount'] = $row['rate'] * $row['quantity'];
+
+                // Yearly quantity checks
+                $epsilon = 0.01;
+                $sumYears = fn($y) => array_sum(array_map(fn($m) => $row[$m . $y] ?? 0, $monthColumns));
+
+                if ($selected_year == 1) {
+                    $total1 = $sumYears(1);
+                    if ($total1 > 0 && abs($row['quantity'] - $total1) >= $epsilon) {
+                        $row['quantity'] = $total1;
+                    }
+                    foreach (range(2, 3) as $y) {
+                        foreach ($monthColumns as $m) $row[$m . $y] = null;
+                    }
+                } elseif ($selected_year == 2) {
+                    $total2 = $sumYears(1) + $sumYears(2);
+                    if ($total2 > 0 && abs($row['quantity'] - $total2) >= $epsilon) {
+                        $row['quantity'] = $total2;
+                    }
+                    foreach ($monthColumns as $m) $row[$m . '3'] = null;
+                } elseif ($selected_year == 3) {
+                    $total3 = $sumYears(1) + $sumYears(2) + $sumYears(3);
+                    if ($total3 > 0 && abs($row['quantity'] - $total3) >= $epsilon) {
+                        $row['quantity'] = $total3;
+                    }
+                } else {
+                    foreach (range(1, 3) as $y) {
+                        foreach ($monthColumns as $m) $row[$m . $y] = null;
+                    }
+                }
+
+                $rowIndex++; // Move to next row
+                return $row;
+            }, $data['rows']);
+
+            $import->seedDB($data['rows']);
+
+            return response()->json(['message' => 'File imported successfully', 'data' => $data]);
+        } catch (\Exception $e) {
+            return response()->json(['UploadError' => $e->getMessage()], 422);
+        }
+    }
+
+    public function bulkServiceProviderStore(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'serviceboq' => 'required|max:2048',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json(['ValidationError' => $validator->errors()], 422);
+            }
+
+            $path = $request->file('serviceboq')->store('matboq');
+            $import = new ExcelImportService(new ServiceBOQBulk);
+            $data = $import->import($path);
+
+            $columns = array_diff(Schema::getColumnListing((new ServiceBOQBulk)->getTable()), ['id', 'created_at', 'updated_at', 'service_id', 'file', 'status']);
+            $nv_id = $request->nv_id;
+            $service_id = $request->service_id;
+            $sequenceNumber = 800000000; // Set the starting sequence number
+            $duplicateMaterialCodes = [];
+
+            $data['rows'] = array_map(function ($row) use ($columns, $nv_id, $service_id, &$duplicateMaterialCodes, &$sequenceNumber) {
+                if (count($columns) !== count($row)) {
+                    // Strip out extra columns
+                    $row = array_slice($row, 0, count($columns));
+                    // return response()->json(['SheetError' => 'Invalid file: Number of columns do not match in all rows'], 422);
+                }
+                //    dd($columns, $row);
+                $row = array_combine($columns, $row);
+
+                // if (empty($row['service_code'])) {
+                //     return response()->json(['ServiceCodeError' => 'Service code is required'], 422);
+                // }
+
+                if ($row['service_code'] == 'N/A' || $row['service_code'] == '') {
+                    $row['service_code'] = (string)$sequenceNumber++;
+                }
+
+                $validator = Validator::make($row, [
+                    'qty' => 'required',
+                ]);
+
+                if ($validator->fails()) {
+                    $duplicateMaterialCodes[] = $row['service_code'];
+                }
+
+                if ($row['service_code'] != 'N/A' || $row['service_code'] != '') {
+                    // Only query the database if 'service_code' is not 'N/A'
+                    $service_data = Boqmaterial::select('rate_ser', 'bun', 'service_short_text')
+                        ->where('activity', $row['service_code'])
+                        ->first();
+                }
+                // if ($service_data) {
+                //     $row['uom'] = $service_data->bun;
+                //     $row['description'] = $service_data->service_short_text;
+                // }
+
+
+                if (!empty($service_data)) {
+                    $row['uom'] = $service_data->bun;
+                    $row['description'] = $service_data->service_short_text;
+                } else {
+                    // Use a temporary variable to swap values
+                    $temp = $row['uom'];  // Store 'uom' in a temporary variable
+                    $row['uom'] = $row['description'];  // Assign 'material_short_text' to 'uom'
+                    $row['description'] = $temp;  // Assign the temporary value to 'material_short_text'
+                }
+                $row['nv_id'] = $nv_id;
+                $row['service_id'] = $service_id;
+                $row['qty'] = max(0, intval($row['qty']));
+                // $row['rate'] = max(0,$row['rate']);
+                // $amount = isset($row['rate']) ? max(0,$row['rate'] * $row['qty']) : 0;
+                if (!empty($service_data->rate_ser)) {
+                    $row['rate'] = max(0, floatval($service_data->rate_ser));
+                } else {
+                    $row['rate'] = max(0, floatval($row['rate']));
+                }
+                $amount = '';
+                if (!empty($row['rate']) && is_numeric($row['rate']) && is_numeric($row['qty'])) {
+                    $amount = max(0, $row['rate'] * $row['qty']);
+                } else {
+                    $amount = 0;
+                }
+
+                $row['amount'] = $amount;
+
+                return $row;
+            }, $data['rows']);
+
+            $import->seedDB($data['rows']);
+
+            return response()->json(['message' => 'File imported successfully', 'data' => $data]);
+        } catch (\Exception $e) {
+            $message = $e->getMessage();
+            return response()->json(['UploadError' => $e], 422);
+        }
+    }
+
+
+
+    public function list_materialBoq(Request $request)
+    {
+
+
+        $user = \Auth()->user();
+        $nv_id = $request->nv_id;
+        $material_id = $request->service_id;
+        // dd( $nv_id);
+
+        if ($request->ajax()) {
+
+            $materialboq = datatables()
+                ->of(
+                    MateriBOQBulk::where('nv_id', $nv_id)->where('material_id', $material_id)->orderBy('id', 'desc')->get()
+                )
+
+
+                ->addColumn('action', function ($data) use ($user) {
+                    // $button = '<a class="btn btn-sm btn-clean btn-icon" onclick="edit_mat('.$data->id.')" title="Edit"><i class="fas fa-edit text-info"></i></a>';
+
+                    $editButton = '<a class="btn btn-sm btn-clean btn-icon" onclick="edit_mat(' . $data->id . ')" title="Edit"><i class="fas fa-edit text-info"></i></a>';
+
+                    $deleteButton = '<a href="javascript:;" data-id="' . $data->id . '" class="btn btn-sm btn-clean btn-icon delete_material" title="Delete"><i class="fas fa-trash text-danger"></i></a>';
+
+                    // $deleteallButton = '<a href="javascript:;" data-id="'.$data->id.'" class="btn btn-sm btn-clean btn-icon delete_all_materials" title="Delete"><i class="fas fa-trash text-danger"></i></a>';
+
+                    return $editButton . $deleteButton;
+                })
+                ->addIndexColumn()
+                ->rawColumns(['action'])
+                ->make(true);
+
+            return $materialboq;
+        }
+        return view('admin.nvMaterial.create');
+    }
+
+    public function list_serviceBoq(Request $request)
+    {
+
+
+        $user = \Auth()->user();
+        $nv_id = $request->nv_id;
+        $service_id = $request->service_id;
+        // dd( $nv_id);
+        if ($request->ajax()) {
+
+            $serviceBoq = datatables()
+                ->of(
+                    ServiceBOQBulk::where('nv_id', $nv_id)->where('service_id', $service_id)->orderBy('id', 'desc')->get()
+                )
+
+                ->addColumn('action', function ($data) use ($user) {
+
+                    $editButton = '<a href="/admin/nv_material/edit_service/' . $data->id . '" class="btn btn-sm btn-clean btn-icon" title="Edit"><i class="fas fa-edit text-info"></i></a>';
+
+                    $deleteButton = '<a href="javascript:;" data-id="' . $data->id . '" class="btn btn-sm btn-clean btn-icon delete_service" title="Delete"><i class="fas fa-trash text-danger"></i></a>';
+
+                    return $editButton . $deleteButton;
+                })
+                ->addIndexColumn()
+                ->rawColumns(['action'])
+                ->make(true);
+
+            return $serviceBoq;
+        }
+        // return view('admin.nvMaterial.create');
+    }
+
+
+    public function store_material_boq(Request $request)
+    {
+        try {
+            $request_input = $request->except("_token");
+
+
+            // dd($_POST);
+            $nv_id = $request_input["nv_id"];
+            $material_id = $request_input["service_id"];
+
+            if (NeedValidation::where(["id" => $nv_id])->exists()) {
+                $rules = [
+                    "material_code" => "required",
+                    "rate" => "required",
+                    "quantity" => "required",
+                    // "prop_type" => "required",
+                    // "nv_type" => "required",
+                    // "fiscal_year" => "required",
+                ];
+
+                $messages = [
+                    "material_code.required" => "Please enter material code",
+                    "rate.required" => "Please enter Rate",
+                    "quantity.required" => "Please enter Quantity",
+                    // "Please enter budgetary provision",
+                    // "prop_type.required" => "Please enter proposal type",
+                    // "nv_type.required" => "Please enter nv type",
+                    // "fiscal_year.required" => "Please enter fiscal year",
+                ];
+                $validator = Validator::make($request_input, $rules, $messages);
+                if ($validator->fails()) {
+                    $response["msg"] = $validator->errors()->toArray();
+                    $response["result"] = "error";
+                } else {
+                    $materialBoq = MateriBOQBulk::create([
+                        "nv_id" => $request_input["nv_id"],
+                        "material_id" =>  $material_id,
+                        "material_code" => $request_input["material_code"],
+                        "uom" => $request_input["uom_0"],
+                        "material_short_text" => $request_input["mat_des"],
+                        "rate" => $request_input["rate"],
+                        "quantity" => $request_input["quantity"],
+                        "amount" => $request_input["total_amount"],
+                    ]);
+                    $response["result"] = "success";
+                    $response["msg"] = "Material BOQ created";
+                }
+            } else {
+                $rules = ["material_code" => "required",];
+                $messages = ["material_code.required" => "Please enter material code",];
+
+                $validator = Validator::make($request_input, $rules, $messages);
+                if ($validator->fails()) {
+                    $response["msg"] = $validator->errors()->toArray();
+                    $response["result"] = "error";
+                } else {
+                    $materialBoq = MateriBOQBulk::create([
+                        "nv_id" => $request_input["nv_id"],
+                        "material_id" =>  $material_id,
+                        "material_code" => $request_input["material_code"],
+                        "uom" => $request_input["uom_0"],
+                        "material_short_text" => $request_input["mat_des"],
+                        "rate" => $request_input["rate"],
+                        "quantity" => $request_input["quantity"],
+                        "amount" => $request_input["total_amount"],
+                    ]);
+                    // echo $location;
+
+                    $response["result"] = "success";
+                    $response["msg"] = "Material BOQ created";
+                }
+            }
+        } catch (\Exception $e) {
+            app(\App\Exceptions\Handler::class)->report($e);
+            $response["result"] = "failure";
+            $response["msg"] = $e->getMessage();
+        }
+
+        return response()->json($response);
+    }
+
+    public function serviceBoqStore(Request $request)
+    {
+
+        try {
+            $request_input = $request->except("_token");
+            // dd($_POST);
+            $nv_id = $request_input["nv_id"];
+            $service_id = $request_input["service_id"];
+            if (NeedValidation::where(["id" => $nv_id])->exists()) {
+                $rules = [
+                    "service_code_0" => "required",
+                    "ser_rate" => "required",
+                    "ser_quantity" => "required",
+                    // "prop_type" => "required",
+                    // "nv_type" => "required",
+                    // "fiscal_year" => "required",
+                ];
+
+                $messages = [
+                    "service_code_0.required" => "Please enter Service Code",
+                    "ser_rate.required" => "Please enter Rate",
+                    "ser_quantity.required" => "Please enter Quantity",
+                    // "Please enter budgetary provision",
+                    // "prop_type.required" => "Please enter proposal type",
+                    // "nv_type.required" => "Please enter nv type",
+                    // "fiscal_year.required" => "Please enter fiscal year",
+                ];
+                $validator = Validator::make($request_input, $rules, $messages);
+                if ($validator->fails()) {
+                    $response["msg"] = $validator->errors()->toArray();
+                    $response["result"] = "error";
+                } else {
+                    $serviceBoq = ServiceBOQBulk::create([
+
+                        'nv_id' =>  $request_input["nv_id"],
+                        'service_id' =>  $service_id,
+                        'service_code' => $request_input["service_code_0"],
+                        'description' =>  $request_input["ser_des_0"],
+                        'uom' =>  $request_input["ser_uom_0"],
+                        'rate' => $request_input["ser_rate"],
+                        'qty' => $request_input["ser_quantity"],
+                        'amount' =>  $request_input["ser_total_amount"],
+                    ]);
+                    $response["result"] = "success";
+                    $response["msg"] = "Service BOQ created";
+                }
+            } else {
+                $rules = ["service_code_0" => "required",];
+                $messages = ["service_code_0.required" => "Please enter service code",];
+
+                $validator = Validator::make($request_input, $rules, $messages);
+                if ($validator->fails()) {
+                    $response["msg"] = $validator->errors()->toArray();
+                    $response["result"] = "error";
+                } else {
+                    $serviceBoq = ServiceBOQBulk::create([
+                        'nv_id' =>  $request_input["nv_id"],
+                        'service_id' =>  $service_id,
+                        'service_code' => $request_input["service_code_0"],
+                        'description' =>  $request_input["ser_des_0"],
+                        'uom' =>  $request_input["ser_uom_0"],
+                        'rate' => $request_input["ser_rate"],
+                        'qty' => $request_input["ser_quantity"],
+                        'amount' =>  $request_input["ser_total_amount"],
+                    ]);
+                    // echo $location;
+
+                    $response["result"] = "success";
+                    $response["msg"] = "Service BOQ created";
+                }
+            }
+        } catch (\Exception $e) {
+            app(\App\Exceptions\Handler::class)->report($e);
+            $response["result"] = "failure";
+            $response["msg"] = $e->getMessage();
+        }
+
+        return response()->json($response);
+    }
+
+    public function search_material_by_name(Request $request)
+    {
+        $searchTerm = $request->search_term;
+
+        $materials = MasterMaterialboq::select('activity', 'uom', 'rate_add', 'material_short_text')
+            ->where('material_short_text', 'like', "%$searchTerm%")
+            ->orWhere('activity', 'like', "%$searchTerm%")
+            ->get();
+        $materialData = array();
+        // dd($materialData );
+        if ($materials->isNotEmpty()) {
+            foreach ($materials as $k => $value) {
+
+                $data['id'] = $value['activity'];
+                $data['text'] = $value['activity'] . "-" . $value['material_short_text'];
+                $data['mat_des_0'] = $value['uom'];
+                $data['uom_0'] = $value['material_short_text'];
+                $data['rate'] = $value['rate_add'];
+
+                array_push($materialData, $data);
+            }
+
+            return response()->json($materialData);
+        } else {
+            return response()->json(array("" => ""));
+        }
+    }
+
+    public function store_data(Request $request)
+    {
+        $schemeno = $request->schemeno;
+        $token = bses_get_token();
+        // 🔐 Bearer token (get from GenerateAuthenticationToken API)
+        // $token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1lIjoiRGVsaGlWMlNlcnZpY2VVc2VyIiwiaHR0cDovL3NjaGVtYXMubWljcm9zb2Z0LmNvbS93cy8yMDA4LzA2L2lkZW50aXR5L2NsYWltcy9yb2xlIjoiMSIsImp0aSI6Ijc3NWFjYzY1LTU4MmItNDllNC1iYjIwLTRmNjE1ZTQ1YjIzNiIsImV4cCI6MTc2NzEyMTQ2MCwiaXNzIjoid3d3LmJzZXNkZWxoaS5jb20vQXBpL0lzc3VlciIsImF1ZCI6Ind3dy5ic2VzZGVsaGkuY29tL0FwaS9BdWRpZW5jZSJ9.zIFX8ZD0qVfXsosPnRpwpTh1LEx6ERwmCJg_cPqZkeA";
+
+        // ✅ Correct URL (NO ?op, lowercase delhiv2)
+        $url = "https://bsesapps.bsesdelhi.com/DelhiV2/ISUService.asmx";
+
+        // ✅ SOAP XML
+        $soapXml = '<?xml version="1.0" encoding="utf-8"?>
+        <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+            <soap:Body>
+                <GET_Scheme_longText xmlns="http://tempuri.org/">
+                    <_schemeno>' . htmlspecialchars($schemeno) . '</_schemeno>
+                </GET_Scheme_longText>
+            </soap:Body>
+        </soap:Envelope>';
+
+        $ch = curl_init($url);
+
+        curl_setopt_array($ch, [
+            CURLOPT_POST            => true,
+            CURLOPT_POSTFIELDS      => $soapXml,
+            CURLOPT_RETURNTRANSFER  => true,
+            CURLOPT_HTTPHEADER      => [
+                'Content-Type: text/xml', // ⚠️ IMPORTANT
+                'SOAPAction: http://tempuri.org/GET_Scheme_longText',
+                'Authorization: Bearer ' . $token, // ✅ TOKEN PASSED HERE
+            ],
+            CURLOPT_TIMEOUT         => 30,
+        ]);
+
+        $response = curl_exec($ch);
+        if (curl_errno($ch)) {
+            return response()->json([
+                'error' => curl_error($ch)
+            ], 500);
+        }
+
+        curl_close($ch);
+
+        // 🧹 Remove namespace prefixes
+        $response = preg_replace("/(<\/?)(\w+):([^>]*>)/", "$1$2$3", $response);
+
+        $xml = simplexml_load_string($response);
+
+        if (!$xml) {
+            return response()->json([
+                'error' => 'Invalid SOAP response',
+                'raw'   => $response
+            ], 500);
+        }
+
+        $array = json_decode(json_encode($xml), true);
+
+        $value = $array['soapBody']['GET_Scheme_longTextResponse']['GET_Scheme_longTextResult']['diffgrdiffgram']['BAPI_RESULT']['ISBapiTable']['LONG_TEXT'] ?? '';
+
+        return response()->json([
+            "message" => "Success",
+            "value"   => $value,
+            "code"    => 200
+        ]);
+    }
+
+    public function store_material(Request $request)
+    {
+        // dd($request->sum);
+        $nv_id = $request->nv_id;
+        // dd($nv_id);
+        $amount = $request->amount;
+        $sum = $request->sum2;
+
+        $material_amount = $request->amount1;
+        // dd($material_amount);
+        $material_description = $request->description1;
+        $total_amt = $sum;
+        // dd($amount,$material_amount);
+        // dd($material_amount);
+
+        if ($sum == 0) {
+            $total_amt = $material_amount;
+        } else {
+            $total_amt = $material_amount;
+            // dd($amount,$material_amount,$total_amt);
+        }
+
+        $sum = $total_amt;
+        // dd($total_amt,$sum);
+        $data = NVMaterial::where('nv_id', $nv_id);
+        // dd($data);
+        $data->update([
+            'total_budget_both' => $total_amt ?? '',
+        ]);
+        // dd($total_amt);
+        return response()->json([
+            "message" => "Success",
+            "material_amount" => $material_amount ?? '',
+            "material_description" => $material_description ?? '',
+            "total_amt" => $total_amt ?? '',
+            "sum" => $sum,
+            "code" => 200
+        ]);
+    }
+
+    public function store_service(Request $request)
+    {
+        // dd($request->sum);
+        $nv_id = $request->nv_id;
+        // dd($nv_id);
+        $amount = $request->amount;
+        $sum = $request->sum;
+        $service_amount = $request->amount1;
+        // dd($service_amount);
+        $service_description = $request->description1;
+        $total_amt = $sum;
+        // dd($amount,$service_amount);
+        if ($sum == 0) {
+            $total_amt =  $service_amount;
+        } else {
+            $total_amt = $service_amount;
+        }
+
+        $sum = $total_amt;
+        // dd($total_amt,$sum);
+        $data = NVMaterial::where('nv_id', $nv_id);
+        // dd($data);
+        $data->update([
+            'total_budget_both' => $total_amt ?? '',
+
+        ]);
+        // dd($data);
+        return response()->json([
+            "message"            =>  "Success",
+            "service_amount"              =>   $service_amount ?? '',
+            "service_description"              =>   $service_description ?? '',
+            "total_amt"                 =>      $total_amt ?? '',
+            "sum" => $sum,
+            "code"                  =>  200
+        ]);
+    }
+
+    public function service_sms(Request $request)
+
+    {
+        $user_id = \Auth()->user()->id;
+        $data = Otps::with('user')->where('user_id', $user_id)->pluck('otp');
+        $app_name = "NEEDVALIDATION";
+        $encrypt_key = "!!B$" . "E$@@*SMS";
+        $companycode = "BRPL";
+        $vendor_code = "REDIAN";
+        $mobile = \Auth()->user()->mobile_number;
+        $otp = $data[0];
+        $sms_type = "OTP";
+        $api_url = 'https://bsesapps.bsesdelhi.com/delhiv2/ISUService.asmx/SENDBSES_SMSAPI?_sAppName=' . $app_name . '&_sEncryptionKey=' . $encrypt_key . '&_sCompanyCode=' . $companycode . '&_sVendorCode=' . $vendor_code . '&_MobileNo=' . $mobile . '&_sOTPMsg=' . $otp . '&_sSMSType=' . $sms_type;
+        $xml = file_get_contents($api_url);
+        $xml = preg_replace("/(<\/?)(\w+):([^>]*>)/", "$1$2$3", $xml);
+        $xml = simplexml_load_string($xml);
+        $json = json_encode($xml);
+        $responseArray = json_decode($json, true);
+        $value = ($responseArray['diffgrdiffgram']['NewDataSet']['Table1']['OUT_PUT']);
+        return response()->json([
+            "message"            =>  "Success",
+            "value"             => $value ?? '',
+            "code"                  =>  200
+        ]);
+    }
+
+    public function store_form(Request $request)
+    {
+        $nv = NeedValidation::where('id', $request['nv_id'])->first();
+        $total_ser_amo = $request->total_ser_amo;
+        $total_mat_mat = $request->total_mat_mat;
+
+        $total_budget_both = preg_replace('/[^\d.]/', '', $request->total_budget_both);
+        $total_budget_service = preg_replace('/[^\d.]/', '', $request->total_budget_service);
+        $ser_budget_avl = preg_replace('/[^\d.]/', '', $request->ser_budget_avl);
+        //  $total_ser_amo = preg_replace('/[^\d.]/', '', $request->total_ser_amo);
+        //  $total_mat_mat = preg_replace('/[^\d.]/', '', $request->total_mat_mat);
+        $budget_avl = preg_replace('/[^\d.]/', '', $request->budget_avl);
+        try {
+            $request_input = $request->except('_token');
+            $status = $request->status;
+            $draft = $request->draft1;
+            $just_Prop = $request->just_Prop;
+            $broad_just = $request->broad_just;
+            $background = $request->background;
+            if ($request['nvid']) {
+                $nv_mat = NVMaterial::where('nv_id', $request['nvid'])->exists();
+            }
+
+
+            if (empty($request['service_id']) && ($nv_mat == false)) {
+
+
+                $nvmaterial = NVMaterial::create([
+                    'dept_id' => $request_input['dept_id'],
+                    'nv_id' => $request_input['nv_id'],
+                    'company_id' => $request_input['company_id'],
+                    'user_id' => \Auth::user()->id,
+                    'dop' => $request_input['dop'],
+                    'proposal_name' => $request_input['proposal_name'],
+                    'background' =>  $background,
+                    'just_Prop' =>  $just_Prop,
+                    'broad_just' => $broad_just,
+                    'draft' =>  $draft,
+                    'cost_trend_year1' => implode(',', $request_input['cost_trend_year1']),
+                    'cost_trend_year2' => implode(',', $request_input['cost_trend_year2']),
+                    'cost_trend_year3' => implode(',', $request_input['cost_trend_year3']),
+
+                    'benefit' => $request_input['benefit'],
+                    'implements_years' => $request_input['implements_years'],
+                    'imp_to' => implode(',', $request_input['imp_to']),
+                    'imp_from' => implode(',', $request_input['imp_from']),
+                    'imp_plan' => implode('.,', $request_input['imp_plan']),
+                    //'prop_type' => $request_input['prop_type'],
+                    'worktype' => $request_input['worktype'],
+                    'scheme_no' => implode(',', $request_input['scheme_no']),
+                    'scheme_des' => implode(',', $request_input['scheme_des']),
+                    'scheme_type' => $request_input['scheme_type'],
+                    'derc_ref_no' => $request_input['derc_ref_no'] ?? null,
+                    'derc_approval' => $request_input['derc_approval'] ?? null,
+                    'derc_app_date' => $request_input['derc_app_date'] ?? null,
+
+
+                    'budget_avl' => $budget_avl,
+                    'ptr_mva' => $request_input['ptr_mva'] ?? null,
+                    'dt_mva' => $request_input['dt_mva'] ?? null,
+                    'ehv_line' => $request_input['ehv_line'] ?? null,
+                    'tax_amount2' => $request_input['tax_amount2'] ?? null,
+                    'tax_amount3' => $request_input['tax_amount3'] ?? null,
+                    'tax1' => $request_input['tax1'] ?? null,
+                    'tax2' => $request_input['tax2'] ?? null,
+                    'tax3' => $request_input['tax3'] ?? null,
+                    'tax4' => $request_input['tax4'] ?? null,
+                    'tax5' => $request_input['tax5'] ?? null,
+                    'tax6' => $request_input['tax6'] ?? null,
+                    'ht_line' => $request_input['ht_line'] ?? null,
+                    'lt_line' => $request_input['lt_line'] ?? null,
+                    'root_cause_analysis' => $request_input['root_cause_analysis'],
+                    'cause_analysis' => $request_input['cause_analysis'],
+                    'special_remarks' => $request_input['special_remarks'],
+                    // 'total_budget_material' => $request_input['total_budget_material'],
+                    'prop_number' => $request_input['prop_number'] ?? null,
+                    'mode_award' => $request_input['mode_award'],
+                    'past_3_year_actual_cost_fy' => implode(',', $request_input['past_3_year_actual_cost_fy']),
+                    'past_3_year_actual_cost' => implode(',', $request_input['past_3_year_actual_cost']),
+                    'past_3_year_actual_cost_service' => implode(',', $request_input['past_3_year_actual_cost_service']),
+                    'past_practice_follow' => $request_input['past_practice_follow'],
+                    'amc_prop_start_date' => $request_input['amc_prop_start_date'],
+                    'amc_prop_end_date' => $request_input['amc_prop_end_date'],
+                    'estimate_amount_of_service' => $request_input['estimate_amount_of_service'],
+                    'estimate_amount_of_service_civil' => $request_input['estimate_amount_of_service_civil'],
+                    'estimate_amount_of_rr_charge' => $request_input['estimate_amount_of_rr_charge'],
+                    'estimate_amount_other' => $request_input['estimate_amount_other'],
+                    'total_budget_service' => $total_budget_service,
+                    'add_budget' => $request_input['add_budget'] ?? null,
+                    'approved_budget' => $request_input['approved_budget'] ?? null,
+                    'total_budget_both' => $total_budget_both,
+                    'cap_add' => $request_input['cars-first'] ?? null,
+                    'ser_rel_nv' => $request_input['cars'],
+                    'material_amount' => implode(',', $request_input['material_amount']),
+                    'material_description' => implode(',', $request_input['material_description']),
+                    'service_amount' => implode(',', $request_input['service_amount']),
+                    'service_description' => implode(',', $request_input['service_description']),
+                    'new_product_text' => $request_input['new_product_text'],
+                    'quant_just_text' => $request_input['quant_just_text'],
+
+
+                ]);
+
+
+
+                $count = Nvsericestatus::where('nv_id', $request_input['nv_id'])->count();
+                $version_nv = ($count >= 1) ? $request_input['nv_id'] . '-v' . ($count + 1) : (string) $request_input['nv_id'];
+                $nvmaterialstatus = new Nvsericestatus();
+                $nvmaterialstatus->material_id = $nvmaterial->id;
+                $nvmaterialstatus->nv_id = $request_input['nv_id'];
+                $nvmaterialstatus->company_id = $request_input['company_id'];
+                $nvmaterialstatus->draft = $draft;
+                $nvmaterialstatus->version_nv = $version_nv;
+
+                if ($nv->budget_type == "CAPEX") {
+                    $nvmaterialstatus->derc_info = '1';
+                } else if ($nv->budget_type == "OPEX") {
+                    $nvmaterialstatus->derc_info = !empty($request_input['prop_number']) ? '1' : '0';
+                }
+
+                $nvmaterialstatus->save();
+
+                NeedValidation::where('id', $request_input['nv_id'])
+                    ->update(['proposal_type' => $request_input['proposal_type']]);
+
+                if (!empty($nvmaterial)) {
+                    $serviceId = $nvmaterial->id;
+                    $data = [];
+
+                    $data['service_id'] = $serviceId;
+
+
+                    $fileFields = [
+                        'previous_work_order',
+                        'derc_stakeholder_approvals',
+                        'consumption_details',
+                        'vend_quatation',
+                        'photo_product',
+                        'material_procurement',
+                        'budget_for_both',
+                        'others',
+                        'new_product',
+                        'cm_rate_ref',
+                        'vendor_quatation',
+                        'last_purchase_price',
+                        'user_estimation',
+                        'previous_wo_rc',
+                        'cost_calculation_for_service',
+                        'quant_just',
+                        'special_attch',
+                        'just_prop_upload',
+                    ];
+
+                    foreach ($fileFields as $fieldName) {
+                        if ($request->hasFile($fieldName)) {
+                            $files = $request->file($fieldName);
+
+                            if (is_array($files)) {
+                                // Handle multiple files for 'others' field
+                                $fileNames = [];
+
+                                foreach ($files as $file) {
+                                    $newFileName = $file->getClientOriginalName();
+                                    $filePath = public_path('materials-doc/' . $newFileName);
+
+                                    // Check if a file with the same name already exists
+                                    if (!File::exists($filePath)) {
+                                        $file->move(public_path('materials-doc'), $newFileName);
+                                    }
+
+                                    $fileNames[] = $newFileName;
+                                }
+
+                                $data[$fieldName] = implode(',', $fileNames); // Convert array to string
+                            } else {
+                                // Handle single file for other fields
+                                $file = $files;
+                                $newFileName = $file->getClientOriginalName();
+                                $filePath = public_path('materials-doc/' . $newFileName);
+
+                                // Check if a file with the same name already exists
+                                if (!File::exists($filePath)) {
+                                    $file->move(public_path('materials-doc'), $newFileName);
+                                }
+
+                                $data[$fieldName] = $newFileName;
+                            }
+                        }
+                    }
+
+                    $data['created_by'] = \Auth::user()->id;
+                    // dd($data);
+                    $document = MaterialDoc::create($data);
+                }
+
+                $response['result'] = 'success';
+                $response['msg'] = 'NV Material Created';
+                $response['service_id'] = $nvmaterial->id;
+            } else {
+                $service_id = $request['service_id'];
+                $nvm = NVMaterial::find($service_id);
+                $nv_status = Nvsericestatus::where('material_id', $nvm->id)->first();
+
+                $nv_stage = DB::table('capex_workflows_status')->where('material_id', $nvm->id)->get();
+
+                $allStagesZero = true;
+
+                if ($nv_stage->count()) {
+                    foreach ($nv_stage as $stage) {
+                        if ($stage->nv_stage_status != 0) {
+                            $allStagesZero = false;
+                        }
+                    }
+                }
+
+                if (
+                    $nv_status->rv1_status == 0 &&
+                    $nv_status->rv2_status == 0 &&
+                    $nv_status->rv3_status == 0 &&
+                    $nv_status->rv4_status == 0 &&
+                    $nv_status->hod_status == 0 &&
+                    $nv_status->groupcio_status == 0 &&
+                    $allStagesZero
+                ) {
+                    //    dd(implode(',', $request_input['imp_plan']));
+                    NVMaterial::find($service_id)->update([
+                        'dept_id' => $request_input['dept_id'],
+                        'nv_id' => $request_input['nv_id'],
+                        'company_id' => $request_input['company_id'],
+                        'user_id' => \Auth::user()->id,
+                        'dop' => $request_input['dop'],
+                        'proposal_name' => $request_input['proposal_name'],
+                        'background' =>  $background,
+                        'just_Prop' =>  $just_Prop,
+                        'broad_just' => $broad_just,
+                        'draft' =>  $draft,
+                        'cost_trend_year1' => implode(',', $request_input['cost_trend_year1']),
+                        'cost_trend_year2' => implode(',', $request_input['cost_trend_year2']),
+                        'cost_trend_year3' => implode(',', $request_input['cost_trend_year3']),
+
+                        'benefit' => $request_input['benefit'],
+                        'implements_years' => $request_input['implements_years'],
+                        'imp_to' => implode(',', $request_input['imp_to']),
+                        'imp_from' => implode(',', $request_input['imp_from']),
+                        'imp_plan' => implode('.,', $request_input['imp_plan']),
+                        //  'prop_type' => $request_input['prop_type'],
+                        'worktype' => $request_input['worktype'],
+                        'scheme_no' => implode(',', $request_input['scheme_no']),
+                        'scheme_des' => implode(',', $request_input['scheme_des']),
+                        'scheme_type' => $request_input['scheme_type'],
+                        'derc_ref_no' => $request_input['derc_ref_no'] ?? null,
+                        'derc_approval' => $request_input['derc_approval'] ?? null,
+                        'derc_app_date' => $request_input['derc_app_date'] ?? null,
+
+
+                        'budget_avl' => $budget_avl,
+                        'ptr_mva' => $request_input['ptr_mva'] ?? null,
+                        'dt_mva' => $request_input['dt_mva'] ?? null,
+                        'ehv_line' => $request_input['ehv_line'] ?? null,
+                        'tax_amount2' => $request_input['tax_amount2'] ?? null,
+                        'tax_amount3' => $request_input['tax_amount3'] ?? null,
+                        'tax1' => $request_input['tax1'] ?? null,
+                        'tax2' => $request_input['tax2'] ?? null,
+                        'tax3' => $request_input['tax3'] ?? null,
+                        'tax4' => $request_input['tax4'] ?? null,
+                        'tax5' => $request_input['tax5'] ?? null,
+                        'tax6' => $request_input['tax6'] ?? null,
+                        'ht_line' => $request_input['ht_line'] ?? null,
+                        'lt_line' => $request_input['lt_line'] ?? null,
+                        'root_cause_analysis' => $request_input['root_cause_analysis'],
+                        'cause_analysis' => $request_input['cause_analysis'],
+                        'special_remarks' => $request_input['special_remarks'],
+                        // 'total_budget_material' => $request_input['total_budget_material'],
+                        'prop_number' => $request_input['prop_number'] ?? null,
+                        'mode_award' => $request_input['mode_award'],
+                        'past_3_year_actual_cost_fy' => implode(',', $request_input['past_3_year_actual_cost_fy']),
+                        'past_3_year_actual_cost' => implode(',', $request_input['past_3_year_actual_cost']),
+                        'past_3_year_actual_cost_service' => implode(',', $request_input['past_3_year_actual_cost_service']),
+                        'past_practice_follow' => $request_input['past_practice_follow'],
+                        'amc_prop_start_date' => $request_input['amc_prop_start_date'],
+                        'amc_prop_end_date' => $request_input['amc_prop_end_date'],
+                        'estimate_amount_of_service' => $request_input['estimate_amount_of_service'],
+                        'estimate_amount_of_service_civil' => $request_input['estimate_amount_of_service_civil'],
+                        'estimate_amount_of_rr_charge' => $request_input['estimate_amount_of_rr_charge'],
+                        'estimate_amount_other' => $request_input['estimate_amount_other'],
+                        'total_budget_service' => $total_budget_service,
+                        'add_budget' => $request_input['add_budget'] ?? null,
+                        'approved_budget' => $request_input['approved_budget'] ?? null,
+                        'total_budget_both' => $total_budget_both,
+                        'cap_add' => $request_input['cars-first'] ?? null,
+                        'ser_rel_nv' => $request_input['cars'],
+                        'material_amount' => implode(',', $request_input['material_amount']),
+                        'material_description' => implode(',', $request_input['material_description']),
+                        'service_amount' => implode(',', $request_input['service_amount']),
+                        'service_description' => implode(',', $request_input['service_description']),
+                        'new_product_text' => $request_input['new_product_text'],
+                        'quant_just_text' => $request_input['quant_just_text'],
+
+                    ]);
+
+                    if ($nv->budget_type == "CAPEX") {
+                        $derc_info = '1';
+                    } else if ($nv->budget_type == "OPEX") {
+                        $derc_info = !empty($request_input['prop_number']) ? '1' : '0';
+                    }
+                    Nvsericestatus::where('material_id', $nv_status->material_id)
+                        ->update(['draft' => $draft, 'derc_info' => $derc_info]);
+
+                    NeedValidation::where('id', $request_input['nv_id'])
+                        ->update(['proposal_type' => $request_input['proposal_type']]);
+
+                    $data = [];
+
+
+                    $fileFields = [
+                        'previous_work_order',
+                        'derc_stakeholder_approvals',
+                        'consumption_details',
+                        'vend_quatation',
+                        'photo_product',
+                        'material_procurement',
+                        'budget_for_both',
+                        'others',
+                        'new_product',
+                        'cm_rate_ref',
+                        'vendor_quatation',
+                        'last_purchase_price',
+                        'user_estimation',
+                        'previous_wo_rc',
+                        'cost_calculation_for_service',
+                        'quant_just',
+                        'special_attch',
+                        'just_prop_upload',
+                    ];
+
+                    foreach ($fileFields as $fieldName) {
+                        if ($request->hasFile($fieldName)) {
+                            $files = $request->file($fieldName);
+
+                            if (is_array($files)) {
+                                // Handle multiple files for 'others' field
+                                $fileNames = [];
+
+                                foreach ($files as $file) {
+                                    $newFileName = $file->getClientOriginalName();
+                                    $filePath = public_path('materials-doc/' . $newFileName);
+
+                                    // Check if a file with the same name already exists
+                                    if (!File::exists($filePath)) {
+                                        $file->move(public_path('materials-doc'), $newFileName);
+                                    }
+
+                                    $fileNames[] = $newFileName;
+                                }
+
+                                $data[$fieldName] = implode(',', $fileNames); // Convert array to string
+                            } else {
+                                // Handle single file for other fields
+                                $file = $files;
+                                $newFileName = $file->getClientOriginalName();
+                                $filePath = public_path('materials-doc/' . $newFileName);
+
+                                // Check if a file with the same name already exists
+                                if (!File::exists($filePath)) {
+                                    $file->move(public_path('materials-doc'), $newFileName);
+                                }
+
+                                $data[$fieldName] = $newFileName;
+                            }
+                        }
+                    }
+                    $data['created_by'] = \Auth::user()->id;
+                    // print_r($data);die;
+                    //    $document = ServiceDoc::create($data);
+                    // dd($data);
+                    MaterialDoc::where('service_id', $service_id)->update($data);
+                }
+                //  }
+                $response['result'] = 'success';
+                $response['msg'] = 'NV Material Updated';
+            }
+        } catch (\Exception $e) {
+            app(\App\Exceptions\Handler::class)->report($e);
+            $response['result'] = 'failure';
+            $response['msg'] = $e->getMessage();
+        }
+
+        return response()->json($response);
+    }
+
+    public function fetch_data(Request $request, $nv_id, $id)
+    {
+
+
+        $data = NVMaterial::where('nv_id', $nv_id)->where('id', $id)->get();
+        return response()->json([
+            "data"             => $data ?? '',
+        ]);
+    }
+    public function delete_nv_material(Request $request, $id)
+    {
+
+        $data = NeedValidation::where('id', $id)->update([
+            'delete_draft' => 1,
+        ]);
+
+        return response()->json([
+            "data"             => $data ?? '',
+            "result"           => "success" ?? ','
+        ]);
+    }
+
+    public function sendclarification(Request $request)
+    {
+        $user_id = \Auth()->user()->id;
+
+        $nv_id = $request->nv_id;
+        $user_name = $request->user_name;
+        $receiver_user_id = $request->user_id;
+        $proposal_name = $request->proposal_name;
+        $material_id = $request->material_id;
+        $selectedEmails = $request->emails;
+
+        $clarificationRemark = $request->remark;
+        $clarificationId = $request->clarificationId;
+        $is_replied = ($request->is_replied) ? $request->is_replied : 0;
+        $file = $request->file('file') ?? null;
+        if (!empty($file)) {
+            $filePath = $file->getClientOriginalName();
+            $filePaths = public_path('clarification-file/' . $filePath);
+
+            if (!File::exists($filePaths)) {
+                $file->move(public_path('clarification-file/'), $filePath);
+            }
+        }
+        // dd($request->all());
+        if (!is_array($selectedEmails)) {
+            $selectedEmails = explode(" ", $selectedEmails);
+        }
+        $employees = Employee::whereIn("email", $selectedEmails)->first();
+        //dd($request->all());
+
+        $departmentIds = explode(',', $employees->department_id);
+        // dd($departmentIds);
+        $departments = Department::whereIn("id", $departmentIds)->get();
+
+        $material_detail = NVMaterial::select('*')->where('nv_id', $nv_id)->orderBy('id', 'desc')->first();
+
+        $nv_type = NeedValidation::where('id', $nv_id)->first();
+
+        $employee = Employee::where('user_id', $user_id)->first();
+        $depart = Department::where("id", $nv_type->department_id)->first();
+        $ini_by =  Employee::where('user_id', $user_id)->first();
+
+        //$selectedEmails = $request->emails;
+
+        // Fetch user names based on email addresses
+        $userNames = Employee::whereIn('email', $selectedEmails)->pluck('name', 'email');
+        // Check if $nv_type and $depart are not null
+        $employee_id = Employee::pluck('user_id');
+
+        $ccuser = DB::table('tbl_material')
+            ->join('nvservicestatus', 'tbl_material.nv_id', '=', 'nvservicestatus.nv_id')
+            ->where('tbl_material.nv_id', '=', $nv_id)
+            ->where(function ($query) {
+                $query->orWhere('nvservicestatus.rv1_status', [1])
+                    ->orWhere('nvservicestatus.rv2_status', [1])
+                    ->orWhere('nvservicestatus.rv3_status', [1])
+                    ->orWhere('nvservicestatus.rv4_status', [1])
+                    ->orWhere('nvservicestatus.hod_status', [1])
+                    ->orWhere('nvservicestatus.ces_rew1_status', [1])
+                    ->orWhere('nvservicestatus.ces_rew2_status', [1])
+                    ->orWhere('nvservicestatus.ces_rew3_status', [1])
+                    ->orWhere('nvservicestatus.ces_rew4_status', [1])
+                    ->orWhere('nvservicestatus.ces_status', [1])
+                    ->orWhere('nvservicestatus.approver_status', [1])
+                    ->orWhere('nvservicestatus.work_rew1_status', [1])
+                    ->orWhere('nvservicestatus.work_rew2_status', [1])
+                    ->orWhere('nvservicestatus.work_rew3_status', [1])
+                    ->orWhere('nvservicestatus.work_rew4_status', [1])
+                    ->orWhere('nvservicestatus.approverdep2_status', [1])
+                    ->orWhere('nvservicestatus.work_rew1dep2_status', [1])
+                    ->orWhere('nvservicestatus.work_rew2dep2_status', [1])
+                    ->orWhere('nvservicestatus.work_rew3dep2_status', [1])
+                    ->orWhere('nvservicestatus.work_rew4dep2_status', [1])
+                    ->orWhere('nvservicestatus.approverdep3_id', [1])
+                    ->orWhere('nvservicestatus.work_rew1dep3_status', [1])
+                    ->orWhere('nvservicestatus.work_rew2dep3_status', [1])
+                    ->orWhere('nvservicestatus.work_rew3dep3_status', [1])
+                    ->orWhere('nvservicestatus.work_rew4dep3_status', [1])
+                    ->orWhere('nvservicestatus.approverdep4_status', [1])
+                    ->orWhere('nvservicestatus.work_rew1dep4_status', [1])
+                    ->orWhere('nvservicestatus.work_rew2dep4_status', [1])
+                    ->orWhere('nvservicestatus.work_rew3dep4_status', [1])
+                    ->orWhere('nvservicestatus.work_rew4dep4_status', [1])
+                    ->orWhere('nvservicestatus.groupcio_status', [1])
+                    ->orWhere('nvservicestatus.ceo_status', [1]);
+            })
+            ->select(
+                'nvservicestatus.rv1_id',
+                'nvservicestatus.rv2_id',
+                'nvservicestatus.rv3_id',
+                'nvservicestatus.rv3_id',
+                'nvservicestatus.rv4_id',
+                'nvservicestatus.hod_id',
+                'nvservicestatus.ces_rew1_id',
+                'nvservicestatus.ces_rew2_id',
+                'nvservicestatus.ces_rew3_id',
+                'nvservicestatus.ces_rew4_id',
+                'nvservicestatus.ces_id',
+                'nvservicestatus.work_rew1_id',
+                'nvservicestatus.work_rew2_id',
+                'nvservicestatus.work_rew3_id',
+                'nvservicestatus.work_rew4_id',
+                'nvservicestatus.approver_id',
+                'nvservicestatus.work_rew1dep2_id',
+                'nvservicestatus.work_rew2dep2_id',
+                'nvservicestatus.work_rew3dep2_id',
+                'nvservicestatus.work_rew4dep2_id',
+                'nvservicestatus.approverdep2_id',
+                'nvservicestatus.work_rew1dep3_id',
+                'nvservicestatus.work_rew2dep3_id',
+                'nvservicestatus.work_rew3dep3_id',
+                'nvservicestatus.work_rew4dep3_id',
+                'nvservicestatus.approverdep3_id',
+                'nvservicestatus.work_rew1dep4_id',
+                'nvservicestatus.work_rew2dep4_id',
+                'nvservicestatus.work_rew3dep4_id',
+                'nvservicestatus.work_rew4dep4_id',
+                'nvservicestatus.approverdep4_id'
+            )
+            ->get();
+
+        $employee_emails = Employee::whereIn('user_id', $employee_id)
+            ->pluck('email', 'user_id');
+
+        $id_email_mapping = [];
+
+        foreach ($ccuser as $item) {
+            $id_email_mapping[] = isset($employee_emails[$item->rv1_id]) ? $employee_emails[$item->rv1_id] : null;
+            $id_email_mapping[] = isset($employee_emails[$item->rv2_id]) ? $employee_emails[$item->rv2_id] : null;
+            $id_email_mapping[] = isset($employee_emails[$item->rv3_id]) ? $employee_emails[$item->rv3_id] : null;
+            $id_email_mapping[] = isset($employee_emails[$item->rv4_id]) ? $employee_emails[$item->rv4_id] : null;
+            $id_email_mapping[] = isset($employee_emails[$item->hod_id]) ? $employee_emails[$item->hod_id] : null;
+            $id_email_mapping[] = isset($employee_emails[$item->ces_rew1_id]) ? $employee_emails[$item->ces_rew1_id] : null;
+            $id_email_mapping[] = isset($employee_emails[$item->ces_rew2_id]) ? $employee_emails[$item->ces_rew2_id] : null;
+            $id_email_mapping[] = isset($employee_emails[$item->ces_rew3_id]) ? $employee_emails[$item->ces_rew3_id] : null;
+            $id_email_mapping[] = isset($employee_emails[$item->ces_rew4_id]) ? $employee_emails[$item->ces_rew4_id] : null;
+            $id_email_mapping[] = isset($employee_emails[$item->ces_id]) ? $employee_emails[$item->ces_id] : null;
+
+            $id_email_mapping[] = isset($employee_emails[$item->work_rew1_id]) ? $employee_emails[$item->work_rew1_id] : null;
+            $id_email_mapping[] = isset($employee_emails[$item->work_rew2_id]) ? $employee_emails[$item->work_rew2_id] : null;
+            $id_email_mapping[] = isset($employee_emails[$item->work_rew3_id]) ? $employee_emails[$item->work_rew3_id] : null;
+            $id_email_mapping[] = isset($employee_emails[$item->work_rew4_id]) ? $employee_emails[$item->work_rew4_id] : null;
+            $id_email_mapping[] = isset($employee_emails[$item->approver_id]) ? $employee_emails[$item->approver_id] : null;
+
+            $id_email_mapping[] = isset($employee_emails[$item->work_rew1dep2_id]) ? $employee_emails[$item->work_rew1dep2_id] : null;
+            $id_email_mapping[] = isset($employee_emails[$item->work_rew2dep2_id]) ? $employee_emails[$item->work_rew2dep2_id] : null;
+            $id_email_mapping[] = isset($employee_emails[$item->work_rew3dep2_id]) ? $employee_emails[$item->work_rew3dep2_id] : null;
+            $id_email_mapping[] = isset($employee_emails[$item->work_rew4dep2_id]) ? $employee_emails[$item->work_rew4dep2_id] : null;
+            $id_email_mapping[] = isset($employee_emails[$item->approverdep2_id]) ? $employee_emails[$item->approverdep2_id] : null;
+
+            $id_email_mapping[] = isset($employee_emails[$item->work_rew1dep3_id]) ? $employee_emails[$item->work_rew1dep3_id] : null;
+            $id_email_mapping[] = isset($employee_emails[$item->work_rew2dep3_id]) ? $employee_emails[$item->work_rew2dep3_id] : null;
+            $id_email_mapping[] = isset($employee_emails[$item->work_rew3dep3_id]) ? $employee_emails[$item->work_rew3dep3_id] : null;
+            $id_email_mapping[] = isset($employee_emails[$item->work_rew4dep3_id]) ? $employee_emails[$item->work_rew4dep3_id] : null;
+            $id_email_mapping[] = isset($employee_emails[$item->approverdep3_id]) ? $employee_emails[$item->approverdep3_id] : null;
+
+            $id_email_mapping[] = isset($employee_emails[$item->work_rew1dep4_id]) ? $employee_emails[$item->work_rew1dep4_id] : null;
+            $id_email_mapping[] = isset($employee_emails[$item->work_rew2dep4_id]) ? $employee_emails[$item->work_rew2dep4_id] : null;
+            $id_email_mapping[] = isset($employee_emails[$item->work_rew3dep4_id]) ? $employee_emails[$item->work_rew3dep4_id] : null;
+            $id_email_mapping[] = isset($employee_emails[$item->work_rew4dep4_id]) ? $employee_emails[$item->work_rew4dep4_id] : null;
+            $id_email_mapping[] = isset($employee_emails[$item->approverdep4_id]) ? $employee_emails[$item->approverdep4_id] : null;
+        }
+
+
+        $id_email_mapping = array_values(array_filter(array_unique($id_email_mapping)));
+
+        $data = [
+            'remark' => $clarificationRemark,
+            'selectedEmails' => $selectedEmails,
+            'userNames' => $userNames,
+            'nv_type' => $nv_type,
+            'department' => $depart,
+            'ini_by' =>  $ini_by,
+            'proposal_name' =>  $proposal_name,
+        ];
+
+        try {
+
+
+            foreach ($selectedEmails as $email) {
+                if ($is_replied == 1) {
+                    $subject = "Reply for {$ini_by->name} on NV no: NV/{$nv_type->budget_type}/{$nv_type->fiscal_year}/{$depart->name}" . ($nv_type->service_id == 1 ? "/Material/{$nv_type->id}" : ($nv_type->service_id == 2 ? "/Service/{$nv_type->id}" : ''));
+                } else {
+                    $subject = "Clarification required from {$ini_by->name} on NV no: NV/{$nv_type->budget_type}/{$nv_type->fiscal_year}/{$depart->name}" . ($nv_type->service_id == 1 ? "/Material/{$nv_type->id}" : ($nv_type->service_id == 2 ? "/Service/{$nv_type->id}" : ''));
+                }
+                Mail::send('emailtemp.doc_mail_clarification', $data, function ($message) use ($email, $id_email_mapping, $nv_type, $depart, $ini_by, $subject, $file, $proposal_name) {
+                    $message->from(env('MAIL_FROM_ADDRESS'), 'NV');
+                    $message->to($email);
+                    foreach ($id_email_mapping as $ccEmail) {
+                        $message->cc($ccEmail);
+                    }
+                    $message->subject($subject);
+                    if (!empty($file)) {
+                        // Attach the file to the email
+                        $message->attach(public_path('clarification-file/' . $file->getClientOriginalName()));
+                    }
+                });
+            }
+            if ($is_replied == 1) {
+                //dd(111);
+                $update = Clarification::find($clarificationId)->update(['is_replied' => 1, 'clarification_remark_reply' => $clarificationRemark, 'reply_timestamp' => date('Y-m-d H:i:s')]);
+            } else {
+                $clarification = Clarification::create([
+                    'material_id' => $material_id,
+                    'nv_id' => $nv_id,
+                    'user_id' => $user_id,
+                    'user_name' =>  $user_name,
+                    'attachment' =>  $filePath ?? null,
+                    'clarification_remark' => $clarificationRemark,
+                    'receiver_user_id' => $receiver_user_id,
+                ]);
+            }
+
+
+            $response = [
+                'success' => true
+            ];
+        } catch (\Exception $e) {
+            dd($e);
+            $response = [
+                'success' => false,
+                'error' => $e->getMessage()
+            ];
+        }
+
+
+        // Check if $nv_type and $depart are not null
+
+
+
+
+        return response()->json($response);
+    }
+
+    public function datafetch(Request $request)
+    {
+        $nv_id = $request->nv_id;
+        $service_id = $request->service_id;
+        $material_import   =  MateriBOQBulk::where('nv_id', $nv_id)->where('material_id', $service_id)->orderBy('id', 'desc')->get();
+        $service_import   =  ServiceBOQBulk::where('nv_id', $nv_id)->where('service_id', $service_id)->orderBy('id', 'desc')->get();
+
+        $total = 0;
+        $m_importAmount = 0;
+        foreach ($material_import as $key => $m_import) {
+            $m_importAmount =  $m_import->amount;
+            if (!empty($m_importAmount)) {
+                $total = $total + $m_importAmount;
+            } else {
+                $total = $total;
+            }
+        }
+
+        $serviceTotal = 0;
+        $ser_importAmount = 0;
+        foreach ($service_import as $key => $ser_import) {
+            $ser_importAmount =  $ser_import->amount;
+            if (!empty($ser_importAmount)) {
+                $serviceTotal = $serviceTotal + $ser_importAmount;
+            } else {
+                $serviceTotal = $serviceTotal;
+            }
+        }
+        $response = [
+            'success' => true,
+            'total' => $total,
+            'serviceTotal' => $serviceTotal
+        ];
+        return response()->json($response);
+    }
+
+    public function AttachedFiles(Request $request)
+    {
+        $id = $request->id;
+        $material_details = NVMaterial::where('nv_id', $id)->orderBy('id', 'desc')->first();
+        $material_doc = MaterialDoc::where('service_id', $material_details->id)->orderBy('id', 'desc')->first();
+
+        return view('admin.nvMaterial.attachedFiles', compact('material_doc'));
+    }
+
+    public function deleteFile(Request $request)
+    {
+        $fileId = $request->input('fileId');
+        $fileType = $request->input('fileType');
+
+        $materialDoc = MaterialDoc::find($fileId);
+
+        if ($materialDoc) {
+            $filePath = '';
+
+            switch ($fileType) {
+                case 'cm_rate_ref':
+                    $filePath = $materialDoc->cm_rate_ref;
+                    $materialDoc->update(['cm_rate_ref' => null]);
+                    break;
+                case 'vend_quatation':
+                    $filePath = $materialDoc->vend_quatation;
+                    $materialDoc->update(['vend_quatation' => null]);
+                    break;
+                case 'last_purchase_price':
+                    $filePath = $materialDoc->last_purchase_price;
+                    $materialDoc->update(['last_purchase_price' => null]);
+                    break;
+                case 'user_estimation':
+                    $filePath = $materialDoc->user_estimation;
+                    $materialDoc->update(['user_estimation' => null]);
+                    break;
+                case 'previous_wo_rc':
+                    $filePath = $materialDoc->previous_wo_rc;
+                    $materialDoc->update(['previous_wo_rc' => null]);
+                    break;
+                case 'others':
+                    $filePath = $materialDoc->others;
+                    $materialDoc->update(['others' => null]);
+                    break;
+                case 'cost_calculation_for_service':
+                    $filePath = $materialDoc->cost_calculation_for_service;
+                    $materialDoc->update(['cost_calculation_for_service' => null]);
+                    break;
+                case 'special_attch':
+                    $filePath = $materialDoc->special_attch;
+                    $materialDoc->update(['special_attch' => null]);
+                    break;
+                case 'quant_just':
+                    $filePath = $materialDoc->quant_just;
+                    $materialDoc->update(['quant_just' => null]);
+                    break;
+                case 'new_product':
+                    $filePath = $materialDoc->new_product;
+                    $materialDoc->update(['new_product' => null]);
+                    break;
+                case 'previous_work_order':
+                    $filePath = $materialDoc->previous_work_order;
+                    $materialDoc->update(['previous_work_order' => null]);
+                    break;
+                case 'derc_stakeholder_approvals':
+                    $filePath = $materialDoc->derc_stakeholder_approvals;
+                    $materialDoc->update(['derc_stakeholder_approvals' => null]);
+                    break;
+                case 'consumption_details':
+                    $filePath = $materialDoc->consumption_details;
+                    $materialDoc->update(['consumption_details' => null]);
+                    break;
+                case 'budget_for_both':
+                    $filePath = $materialDoc->budget_for_both;
+                    $materialDoc->update(['budget_for_both' => null]);
+                    break;
+                case 'photo_product':
+                    $filePath = $materialDoc->photo_product;
+                    $materialDoc->update(['photo_product' => null]);
+                    break;
+                case 'material_procurement':
+                    $filePath = $materialDoc->material_procurement;
+                    $materialDoc->update(['material_procurement' => null]);
+                    break;
+                case 'vendor_quatation':
+                    $filePath = $materialDoc->vendor_quatation;
+                    $materialDoc->update(['vendor_quatation' => null]);
+                    break;
+                case 'just_prop_upload':
+                    $filePath = $materialDoc->just_prop_upload;
+                    $materialDoc->update(['just_prop_upload' => null]);
+                    break;
+                default:
+                    return response()->json(['error' => 'Invalid file type'], 400);
+            }
+
+            if (!empty($filePath)) {
+                Storage::delete('materials-doc/' . $filePath);
+
+                return response()->json(['success' => true]);
+            } else {
+                return response()->json(['error' => 'File reference not found in the request'], 400);
+            }
+        }
+
+        return response()->json(['error' => 'File not found'], 404);
+    }
+
+    public function removeMaterialAmount(Request $request)
+    {
+        $nv_id = $request->input('nv_id');
+        $index = $request->input('index');
+        $material_id = $request->input('material_id');
+        $nvmaterial = NVMaterial::where('nv_id', $nv_id)->where('id', $material_id)->first();
+        if ($nvmaterial) {
+            $material_amount = explode(',', $nvmaterial->material_amount);
+            if (isset($material_amount[$index])) {
+                unset($material_amount[$index]);
+                $material_amount = array_values($material_amount);
+                $nvmaterial->material_amount = implode(',', $material_amount);
+                NVMaterial::where('nv_id', $nv_id)
+                    ->update(['material_amount' => $nvmaterial->material_amount]);
+            }
+
+            $material_description = explode(',', $nvmaterial->material_description);
+            if (isset($material_description[$index])) {
+                unset($material_description[$index]);
+                $material_description = array_values($material_description);
+                $nvmaterial->material_description = implode(',', $material_description);
+                NVMaterial::where('nv_id', $nv_id)
+                    ->update(['material_description' => $nvmaterial->material_description]);
+            }
+
+
+            return response()->json(['success' => true, 'message' => 'Material amount removed successfully.']);
+        }
+
+        return response()->json(['success' => false, 'message' => 'Material not found']);
+    }
+
+    public function removeServiceAmount(Request $request)
+    {
+        $nv_id = $request->input('nv_id');
+        $index = $request->input('index');
+        $material_id = $request->input('material_id');
+
+        $nvmaterial = NVMaterial::where('nv_id', $nv_id)->where('id', $material_id)->first();
+        if ($nvmaterial) {
+            $service_amount = explode(',', $nvmaterial->service_amount);
+            if (isset($service_amount[$index])) {
+                unset($service_amount[$index]);
+                $service_amount = array_values($service_amount);
+                $nvmaterial->service_amount = implode(',', $service_amount);
+                NVMaterial::where('nv_id', $nv_id)
+                    ->update(['service_amount' => $nvmaterial->service_amount]);
+            }
+
+            $service_description = explode(',', $nvmaterial->service_description);
+            if (isset($service_description[$index])) {
+                unset($service_description[$index]);
+                $service_description = array_values($service_description);
+                $nvmaterial->service_description = implode(',', $service_description);
+                NVMaterial::where('nv_id', $nv_id)
+                    ->update(['service_description' => $nvmaterial->service_description]);
+            }
+
+
+            return response()->json(['success' => true, 'message' => 'Service amount removed successfully.']);
+        }
+
+        return response()->json(['success' => false, 'message' => 'Service amount not found']);
+    }
+
+    public function SchemeButtonRemove(Request $request)
+    {
+        $nv_id = $request->input('nv_id');
+        $index = $request->input('index');
+        $material_id = $request->input('material_id');
+
+        $nvmaterial = NVMaterial::where('nv_id', $nv_id)->where('id', $material_id)->first();
+
+        if ($nvmaterial) {
+            // Scheme numbers
+            $scheme_no = explode(',', $nvmaterial->scheme_no);
+            if (isset($scheme_no[$index])) {
+                unset($scheme_no[$index]);
+                $scheme_no = array_values($scheme_no);
+            }
+
+            // Scheme descriptions
+            $scheme_des = explode(',', $nvmaterial->scheme_des);
+            if (isset($scheme_des[$index])) {
+                unset($scheme_des[$index]);
+                $scheme_des = array_values($scheme_des);
+            }
+
+            // Update both fields in one go
+            $nvmaterial->scheme_no = implode(',', $scheme_no);
+            $nvmaterial->scheme_des = implode(',', $scheme_des);
+            $nvmaterial->save();
+
+            return response()->json(['success' => true, 'message' => 'Scheme removed successfully.']);
+        }
+
+        return response()->json(['success' => false, 'message' => 'Scheme not found']);
+    }
+
+    // Upload CK editor
+    public function ckEditorUpload(Request $request)
+    {
+
+        if ($request->hasFile('upload')) {
+            $file = $request->file('upload');
+
+            $allowedTypes = [
+                'pdf',
+                'doc',
+                'docx',
+                'xls',
+                'xlsx',
+                'ppt',
+                'pptx',
+                'zip',
+                'txt',
+                'csv'
+            ];
+
+            $extension = strtolower($file->getClientOriginalExtension());
+
+            if (!in_array($extension, $allowedTypes)) {
+                return response()->json(['error' => 'Invalid file type'], 422);
+            }
+
+            $filename = time() . '_' . $file->getClientOriginalName();
+            $file->move(public_path('uploads/ckeditor'), $filename);
+
+            $url = asset('uploads/ckeditor/' . $filename);
+
+            // CKEditor needs the "url" key
+            return response()->json([
+                'url' => $url
+            ]);
+        }
+
+        return response()->json(['error' => 'No file uploaded'], 400);
+    }
+}
