@@ -1,0 +1,34 @@
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+override.tf
+
+# PHP / Laravel
+vendor/
+node_modules/
+composer.phar
+auth.json
+/storage/*.key
+/storage/app/*
+!/storage/app/.gitkeep
+/storage/framework/cache/*
+/storage/framework/sessions/*
+/storage/framework/views/*
+/storage/logs/*
+/bootstrap/cache/*
+!/bootstrap/cache/.gitkeep
+/public/storage
+/public/build
+/public/hot
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# OS
+.DS_Store
+*.swp
