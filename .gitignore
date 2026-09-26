@@ -88,3 +88,4 @@ auth.json
 database/dump/*.sql
 *.sql.gz
 *.dump
+.phpunit.result.cache
