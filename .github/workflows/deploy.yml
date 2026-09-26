@@ -1,0 +1,51 @@
+name: Deploy
+
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build:
+    name: Build artifact
+    runs-on: ubuntu-latest
+    outputs:
+      artifact_key: ${{ steps.pack.outputs.key }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, xml, curl, zip, pdo_mysql, bcmath
+
+      - name: Install production dependencies
+        run: composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader --no-scripts
+
+      - name: Stamp version
+        run: echo "${{ github.sha }}" > version.txt
+
+      - name: Package
+        id: pack
+        run: |
+          KEY="builds/${{ github.sha }}.tar.gz"
+          tar --exclude-vcs --exclude='./node_modules' -czf app.tar.gz \
+            app bootstrap config database public resources routes storage vendor \
+            artisan composer.json composer.lock version.txt
+          ls -lh app.tar.gz
+          echo "key=$KEY" >> $GITHUB_OUTPUT
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::954015041558:role/GitHubActions-Staging-Deploy
+          aws-region: ap-south-1
+
+      - name: Upload artifact
+        run: |
+          aws s3 cp app.tar.gz "s3://securelab-artifacts/${{ steps.pack.outputs.key }}"
+          echo "Uploaded: ${{ steps.pack.outputs.key }}"
