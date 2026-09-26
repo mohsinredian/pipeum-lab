@@ -24,7 +24,8 @@ return new class extends Migration
         $path = database_path('dump/baseline.sql');
 
         if (!is_file($path)) {
-            throw new RuntimeException("Baseline dump not found at: {$path}");
+            // No dump present (CI, fresh environments) - skip the import
+            return;
         }
 
         $sql = file_get_contents($path);
