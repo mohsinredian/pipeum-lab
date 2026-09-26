@@ -1,0 +1,9 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Vendored frontend libraries"
+paths = [
+  '''public/theme/plugins/.*''',
+  '''public/theme/dist/.*'''
+]
