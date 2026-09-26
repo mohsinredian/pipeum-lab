@@ -83,3 +83,8 @@ auth.json
 !/public/images/icons8-plus-50.png
 !/public/images/Welcome-message.png
 /public/theme/plugins/
+
+# Database dumps — never commit
+database/dump/*.sql
+*.sql.gz
+*.dump
