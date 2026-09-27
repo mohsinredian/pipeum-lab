@@ -1,0 +1,12 @@
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Vendored frontend libraries and minified assets"
+paths = [
+  '''.*theme/plugins/.*''',
+  '''.*theme/dist/.*''',
+  '''.*\.min\.js$''',
+  '''.*\.min\.css$''',
+  '''.*\.min\.js\.map$'''
+]
