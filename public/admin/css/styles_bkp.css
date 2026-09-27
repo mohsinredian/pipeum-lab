@@ -1,0 +1,185 @@
+.pre-loader {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 9999;
+    background: url(/loader.gif) center no-repeat #fff;
+    opacity: .8;
+    background-size: 6%;
+    /*display: none;*/
+}
+.common-error {
+    color: red;
+    font-size: 1rem;
+    font-weight: 400 !important;
+    width:100%;
+}
+.card-toolbar{
+    float: right;
+}
+.btn-secondary{
+    color: #464E5F !important;
+    background-color: #E5EAEE !important;
+    border-color: #E5EAEE !important;
+}
+.btn.btn-success {
+  color: #ffffff;
+  background-color: #1BC5BD;
+  border-color: #1BC5BD;
+}
+label.error, .error_message {
+  color: red;
+  font-size: 13px;
+  padding-top: .5rem !important;
+  text-align: left !important;
+  display: block;
+  margin-bottom: 0;
+}
+.form-group label {
+  font-size: 1rem;
+  font-weight: 400 !important;
+}
+.swal2-popup .swal2-icon {
+  margin: 0rem 0 0rem 0;
+}
+.btn.btn-sm i, .btn-group-sm > .btn i {
+  font-size: 1.3rem;
+  padding-right: 0.35rem;
+}
+.text-info{
+    color: #007bff !important;
+}
+.btn.btn-secondary:hover:not(.btn-text), .btn.btn-secondary:focus:not(.btn-text), .btn.btn-secondary.focus:not(.btn-text) {
+  color: #464E5F;
+  background-color: #D6D6E0;
+  border-color: #D6D6E0;
+}
+.btn.btn-light-warning {
+  color: #FFA800 !important;
+  background-color: #FFF4DE !important;
+  border-color: transparent !important;
+}
+.btn.btn-light-warning:hover:not(.btn-text), .btn.btn-light-warning:focus:not(.btn-text), .btn.btn-light-warning.focus:not(.btn-text) {
+  color: #ffffff !important;
+  background-color: #FFA800 !important;
+  border-color: transparent !important;
+}
+/* .file-upload {
+  display: block;
+} */
+.file-upload .file-select {
+  display: block;
+  border: 1px solid #8950FC;
+  cursor: pointer;
+  height: 40px;
+  line-height: 40px;
+  text-align: left;
+  background: #FFFFFF;
+  overflow: hidden;
+  position: relative;
+  border-radius: .25rem;
+}
+.file-upload .file-select .file-select-button {
+  background: #8950FC;
+  color: white;
+  padding: 0 10px;
+  display: inline-block;
+  height: 40px;
+  line-height: 40px;
+  cursor: pointer;
+}
+.file-upload .file-select .file-select-name {
+  line-height: 40px;
+  display: inline-block;
+  padding: 0 10px;
+}
+.file-upload .file-select input[type="file"] {
+  z-index: 100;
+  cursor: pointer;
+  position: absolute;
+  height: 100%;
+  width: 100%;
+  top: 0;
+  left: 0;
+  opacity: 0;
+  filter: alpha(opacity=0);
+}
+.form-text {
+  display: block;
+  margin-top: 0.25rem;
+}
+.image-input {
+    position: relative;
+    display: inline-block;
+    border-radius: 0.42rem;
+    background-repeat: no-repeat;
+    background-size: cover;
+}
+.image-input.image-input-outline .image-input-wrapper {
+  border: 3px solid #ffffff;
+  -webkit-box-shadow: 0 0.5rem 1.5rem 0.5rem rgba(0, 0, 0, 0.075);
+  box-shadow: 0 0.5rem 1.5rem 0.5rem rgba(0, 0, 0, 0.075);
+}
+.image-input .image-input-wrapper {
+  width: 120px;
+  height: 120px;
+  border-radius: 0.42rem;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+.btn.btn-white.btn-shadow {
+  -webkit-box-shadow: 0px 9px 16px 0px rgba(33, 33, 33, 0.25) !important;
+  box-shadow: 0px 9px 16px 0px rgba(33, 33, 33, 0.25) !important;
+}
+.btn.btn-icon.btn-circle {
+  border-radius: 50%;
+}
+.btn.btn-icon.btn-xs {
+  height: 24px;
+  width: 24px;
+}
+.image-input [data-action="change"] {
+  cursor: pointer;
+  position: absolute;
+  right: -10px;
+  top: -10px;
+}
+.btn.btn-white {
+  color: #464E5F;
+  background-color: #ffffff;
+  border-color: #ffffff;
+}
+.btn.btn-icon {
+  display: -webkit-inline-box;
+  display: -ms-inline-flexbox;
+  display: inline-flex;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
+  -webkit-box-pack: center;
+  -ms-flex-pack: center;
+  justify-content: center;
+  padding: 0;
+  height: calc(1.5em + 1.3rem + 2px);
+  width: calc(1.5em + 1.3rem + 2px);
+}
+.symbol {
+  display: inline-block;
+  -ms-flex-negative: 0;
+  flex-shrink: 0;
+  position: relative;
+  border-radius: 0.42rem;
+}
+.image-input [data-action="cancel"], .image-input [data-action="remove"] {
+  position: absolute;
+  right: -10px;
+  bottom: -5px;
+}
+tr:hover{
+  background-color: lightblue;
+}
+.small-box{
+  background-color: #759dc7;
+}

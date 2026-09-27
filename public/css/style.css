@@ -1,0 +1,161 @@
+@import url('https://fonts.googleapis.com/css2?family=Cedarville+Cursive&family=Dancing+Script&family=Satisfy&family=Shadows+Into+Light+Two&display=swap');
+
+.signature h3 {
+    color: #49A3AF;
+    margin-bottom: 20px;
+}
+
+.signature input {
+    display: block;
+    max-width: 523px;
+    width: 100%;
+    height: 62px;
+    margin: 0 auto 66px;
+    padding: 0 22px;
+    background-clip: padding-box;
+    border: 1px solid #e5e5e5;
+    border-radius: 6px;
+    box-shadow: 0 2px 22px 0 rgba(0, 0, 0, 0.1);
+    font-size: 18px;
+    color: #767676;
+    transition: .2s border-color;
+}
+
+.signature .search-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 230px;
+    height: 53px;
+    font-size: 17px;
+    text-transform: uppercase;
+    text-decoration: none;
+    background-color: #51b7c5;
+    border: none;
+    border-radius: 100px;
+    color: #FFF;
+    cursor: pointer;
+    transition: .2s background-color, .2s color;
+}
+
+.signature .save-btn{
+   position: absolute;
+   top: 10px;
+   right: 10px;
+   background-color: #51b7c5;
+   border: none;
+   color: white;
+   font-weight: bold;
+   font-size: 12px;
+   padding: 5px 10px 5px 10px;
+}
+
+.signature .card{
+    border: 1px solid transparent;
+}
+
+.signature .card:hover{
+   border: 1px solid rgba(0,0,0,.125);
+}
+
+.signature h4 {
+    font-size: 48px;
+}
+
+.signature .first h4 {
+    font-family: 'Cedarville Cursive', cursive;
+}
+
+.signature .second h4 {
+    font-family: 'Dancing Script', cursive;
+}
+
+.signature .third h4 {
+    font-family: 'Satisfy', cursive;
+}
+
+.signature .fourth h4 {
+    font-family: 'Shadows Into Light Two', cursive;
+}
+
+div.dataTables_wrapper div.dataTables_filter {
+    margin-top: -10px;
+}
+
+@media only screen and (max-width:1024px) {
+    div.dataTables_filter {
+      margin-top: 60px !important;
+      display: block;
+      margin-left: auto;
+      margin-right: auto;
+  }
+  }
+
+  .company-t .company-th{
+    width: 4% !important;
+    text-align: left;
+  }
+
+  .user-profile img{
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
+    display: block;
+    margin: 10px auto 20px auto;
+    border: 4px solid rgb(3, 142, 220);
+  }
+
+  .user-profile p{
+    font-weight: 600;
+    font-size: 12px;
+  }
+
+  .user-profile .p{
+    font-weight: 600;
+    color: gray;
+    font-size: 12px;
+  }
+
+  .user-details{
+    color: #3085d6;
+  }
+  
+
+  .select-signature{
+    background-color: rgb(3, 142, 220);
+    color: white;
+    font-weight: 900;
+    padding: 5px 0px 5px 0px;
+    border-radius: 5px;
+    font-size: 14px !important;
+  }
+
+  #signature{
+    font-size: 14px !important;
+  }
+
+  #formSubmits button{
+    font-size: 14px !important;
+  }
+
+  .signature-line .card{
+    border: 1px solid rgb(3, 142, 220);
+  }
+
+  .first-card-signature .card{
+    border: 1px solid rgb(3, 142, 220);
+  }
+
+  .close-btn-modal{
+    background-color: red !important;
+    font-size: 14px !important;
+    border-radius: 50%;
+    border: 3px solid white !important;
+    position: absolute;
+    right: -5px;
+    top: -5px;
+  }
+
+  #myModal2{
+    padding-top: 18%;
+  }

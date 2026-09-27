@@ -32,3 +32,59 @@ auth.json
 # OS
 .DS_Store
 *.swp
+
+# Public - user uploads and runtime directories (S3 in production)
+/public/approval-remark/*
+/public/clarification-file/*
+/public/images/*
+/public/manual/*
+/public/masterBOQ/*
+/public/materials-doc/*
+/public/pdf/*
+/public/services-doc/*
+/public/TicketPhotos/*
+/public/upload-docs/*
+/public/uploads/*
+
+# Keep the directories themselves
+!/public/approval-remark/.gitkeep
+!/public/clarification-file/.gitkeep
+!/public/images/.gitkeep
+!/public/manual/.gitkeep
+!/public/masterBOQ/.gitkeep
+!/public/materials-doc/.gitkeep
+!/public/pdf/.gitkeep
+!/public/services-doc/.gitkeep
+!/public/TicketPhotos/.gitkeep
+!/public/upload-docs/.gitkeep
+!/public/uploads/.gitkeep
+
+# Application branding assets (keep these)
+!/public/images/logo.png
+!/public/images/logo-login.png
+!/public/images/login-logo.png
+!/public/images/login-img.png
+!/public/images/login-img1.png
+!/public/images/login-img-side.png
+!/public/images/login-img-side1.png
+!/public/images/login-img-side2.png
+!/public/images/login-img-side12.png
+!/public/images/login-img-side56.png
+!/public/images/bgimg.png
+!/public/images/bgimg1.png
+!/public/images/cover-img.png
+!/public/images/first.png
+!/public/images/form.png
+!/public/images/notFound.jpg
+!/public/images/pdf.png
+!/public/images/scada.png
+!/public/images/thumbs-up.jpg
+!/public/images/thumbs-down.jpg
+!/public/images/icons8-plus-50.png
+!/public/images/Welcome-message.png
+
+# Database dumps — never commit
+database/dump/*.sql
+*.sql.gz
+*.dump
+.phpunit.result.cache
