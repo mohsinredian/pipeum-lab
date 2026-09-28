@@ -56,6 +56,7 @@ jobs:
           INSTANCE_ID=i-084aea31c061f835d
           KEY="builds/${{ github.sha }}.tar.gz"
           RELEASE="${{ github.sha }}"
+          ROOT="${{ vars.DEPLOY_ROOT }}"
           ENV_NAME="${{ github.ref == 'refs/heads/main' && 'PRODUCTION' || 'STAGING' }}"
 
           echo "Deploying $RELEASE to $ENV_NAME"
@@ -67,15 +68,15 @@ jobs:
             --parameters "commands=[
               'set -e',
               'aws s3 cp s3://securelab-artifacts/$KEY /tmp/app.tar.gz',
-              'sudo mkdir -p /var/www/releases/$RELEASE',
-              'sudo tar -xzf /tmp/app.tar.gz -C /var/www/releases/$RELEASE',
-              'sudo ln -sfn /var/www/shared/.env /var/www/releases/$RELEASE/.env',
-              'sudo chown -R www-data:www-data /var/www/releases/$RELEASE',
-              'sudo chmod -R 775 /var/www/releases/$RELEASE/storage /var/www/releases/$RELEASE/bootstrap/cache',
-              'sudo ln -sfn /var/www/releases/$RELEASE /var/www/current',
-              'cd /var/www/current && sudo -u www-data php artisan config:clear',
+              'sudo mkdir -p $ROOT/releases/$RELEASE',
+              'sudo tar -xzf /tmp/app.tar.gz -C $ROOT/releases/$RELEASE',
+              'sudo ln -sfn $ROOT/.env $ROOT/releases/$RELEASE/.env',
+              'sudo chown -R www-data:www-data $ROOT/releases/$RELEASE',
+              'sudo chmod -R 775 $ROOT/releases/$RELEASE/storage $ROOT/releases/$RELEASE/bootstrap/cache',
+              'sudo ln -sfn $ROOT/releases/$RELEASE $ROOT/current',
+              'cd $ROOT/current && sudo -u www-data php artisan config:clear',
               'sudo systemctl reload nginx',
-              'cat /var/www/current/version.txt'
+              'cat $ROOT/current/version.txt'
             ]" \
             --query 'Command.CommandId' --output text)
 
