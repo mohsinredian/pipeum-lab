@@ -75,6 +75,7 @@ jobs:
               'sudo chmod -R 775 $ROOT/releases/$RELEASE/storage $ROOT/releases/$RELEASE/bootstrap/cache',
               'sudo ln -sfn $ROOT/releases/$RELEASE $ROOT/current',
               'cd $ROOT/current && sudo -u www-data php artisan config:clear',
+              'sudo systemctl reload php8.2-fpm',
               'sudo systemctl reload nginx',
               'cat $ROOT/current/version.txt'
             ]" \

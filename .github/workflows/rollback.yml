@@ -45,6 +45,7 @@ jobs:
               'test -d $ROOT/releases/$TARGET || { echo NOT_FOUND; exit 1; }',
               'sudo ln -sfn $ROOT/releases/$TARGET $ROOT/current',
               'cd $ROOT/current && sudo -u www-data php artisan config:clear',
+              'sudo systemctl reload php8.2-fpm',
               'sudo systemctl reload nginx',
               'cat $ROOT/current/version.txt'
             ]" \
