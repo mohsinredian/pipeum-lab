@@ -1,0 +1,58 @@
+name: Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to roll back'
+        required: true
+        type: choice
+        options: [staging, production]
+      release_sha:
+        description: 'Release SHA to roll back to'
+        required: true
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE }}
+          aws-region: ap-south-1
+
+      - name: Roll back
+        run: |
+          START=$(date +%s)
+          INSTANCE_ID=i-084aea31c061f835d
+          ROOT="${{ vars.DEPLOY_ROOT }}"
+          TARGET="${{ inputs.release_sha }}"
+
+          echo "Rolling back ${{ inputs.environment }} to $TARGET"
+
+          CMD=$(aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name AWS-RunShellScript \
+            --parameters "commands=[
+              'set -e',
+              'test -d $ROOT/releases/$TARGET || { echo NOT_FOUND; exit 1; }',
+              'sudo ln -sfn $ROOT/releases/$TARGET $ROOT/current',
+              'cd $ROOT/current && sudo -u www-data php artisan config:clear',
+              'sudo systemctl reload nginx',
+              'cat $ROOT/current/version.txt'
+            ]" \
+            --query 'Command.CommandId' --output text)
+
+          sleep 20
+          aws ssm get-command-invocation \
+            --command-id "$CMD" --instance-id "$INSTANCE_ID" \
+            --query '[Status,StandardOutputContent]' --output text
+
+          echo "Recovery time: $(( $(date +%s) - START )) seconds"
